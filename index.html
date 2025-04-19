@@ -3,89 +3,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AniStream Mockup (HTML)</title>
+    <title>AniStream - Browse Anime</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/swiper/swiper-bundle.min.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /* Custom Global Styles */
+        /* Common Styles (Consider moving to a separate style.css file) */
         html { scroll-behavior: smooth; }
         body { font-family: 'Inter', sans-serif; background-color: #1a202c; color: #e2e8f0; }
         body.modal-open { overflow: hidden; }
-
-        /* Scrollbar Styles */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #2d3748; }
         ::-webkit-scrollbar-thumb { background: #4a5568; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #718096; }
-
-        /* Line Clamp Utility */
         .line-clamp-1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }
         .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }
         .line-clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }
-        .line-clamp-10 { display: -webkit-box; -webkit-line-clamp: 10; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }
-
-        /* --- Swiper Styles (Featured) --- */
         #featured-swiper { height: 400px; border-radius: 0.5rem; margin-bottom: 2rem; }
         #featured-swiper .swiper-slide { position: relative; overflow: hidden; border-radius: 0.5rem; background-size: cover; background-position: center center; }
         #featured-swiper .slide-text-content { position: absolute; bottom: 0; left: 0; z-index: 10; padding: 1.5rem; width: 100%; background: linear-gradient(to right, rgba(10, 10, 10, 0.95) 10%, rgba(10, 10, 10, 0.8) 40%, rgba(10, 10, 10, 0) 100%); border-radius: 0 0 0 0.5rem; }
         #featured-swiper .swiper-pagination { bottom: 15px !important; }
         #featured-swiper .swiper-pagination-bullet { background-color: #718096 !important; opacity: 0.7 !important; width: 8px !important; height: 8px !important; transition: background-color 0.3s ease, opacity 0.3s ease !important; }
         #featured-swiper .swiper-pagination-bullet-active { background-color: #d6bcfa !important; opacity: 1 !important; }
-        #featured-swiper .swiper-button-next, #featured-swiper .swiper-button-prev { display: none !important; } /* Hide default nav buttons if not needed */
-
-        /* Mobile Menu Transition */
         #mobile-sidebar { transition: transform 0.3s ease-in-out; }
-
-        /* --- Search Styles --- */
         #search-suggestions { position: absolute; top: 100%; left: 0; right: 0; z-index: 40; max-height: 300px; overflow-y: auto; background-color: #1f2937; border: 1px solid #374151; border-top: none; border-radius: 0 0 0.375rem 0.375rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3); }
         #search-suggestions::-webkit-scrollbar { width: 5px; }
         #search-suggestions::-webkit-scrollbar-track { background: #374151; }
         #search-suggestions::-webkit-scrollbar-thumb { background: #6b7280; border-radius: 3px;}
         #search-suggestions::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
-
-        /* --- Detail View Styles --- */
-         #detail-view-banner { height: 300px; md:height: 400px; width: 100%; background-size: cover; background-position: center center; position: relative; border-radius: 0.5rem; overflow: hidden; }
-         #detail-view-banner::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 60%; background: linear-gradient(to top, #1a202c, transparent); }
-         #detail-view-header { display: flex; flex-direction: column; sm:flex-direction: row; gap: 1rem; sm:gap: 1.5rem; margin-top: -80px; sm:-mt-24; position: relative; z-index: 1; padding: 0 1rem; }
-         #detail-view-cover-image { width: 130px; sm:width: 160px; height: auto; object-fit: cover; border-radius: 0.375rem; border: 3px solid #2d3748; flex-shrink: 0; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3); }
-         #detail-view-body { margin-top: 1.5rem; display: grid; grid-template-columns: 1fr; md:grid-template-columns: 2fr 1fr; gap: 2rem; }
-         .detail-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 1rem; }
-         .detail-list-item { text-align: center; font-size: 0.75rem; color: #d1d5db; }
-         .detail-list-item img { width: 80px; height: 110px; object-fit: cover; border-radius: 0.25rem; margin: 0 auto 0.5rem; }
-
-        /* Skeleton Styles */
         .top-list-item-skeleton { background-color: #4a5568; border-radius: 0.375rem; height: 4rem; }
         .card-skeleton { background-color: #2d3748; border-radius: 0.5rem; height: 16rem; }
         .slider-skeleton { background-color: #4a5568; border-radius: 0.5rem; }
         .slider-skeleton .slide-text-content { background: linear-gradient(to right, rgba(30, 30, 30, 0.95) 10%, rgba(30, 30, 30, 0.8) 40%, rgba(30, 30, 30, 0) 100%); }
+         /* Detail view specific styles removed from here */
     </style>
 </head>
 <body class="bg-gray-900 text-gray-200">
 
     <header id="main-header" class="bg-gray-900 bg-opacity-80 backdrop-blur-sm p-4 shadow-md sticky top-0 z-30">
         <div class="container mx-auto flex justify-between items-center gap-4">
-            <h1 id="header-title" class="text-2xl font-bold text-purple-400 cursor-pointer flex-shrink-0">AniStream</h1>
+            <a href="index.html" class="text-2xl font-bold text-purple-400 cursor-pointer flex-shrink-0">AniStream</a>
 
             <div class="flex-grow relative flex justify-end lg:justify-center">
-                <input
-                    type="search"
-                    id="search-input"
-                    placeholder="Search Anime..."
-                    class="hidden lg:block w-full max-w-md px-4 py-2 bg-gray-700 text-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder-gray-400 text-sm"
-                    aria-label="Search Anime"
-                />
+                <input type="search" id="search-input" placeholder="Search Anime..." class="hidden lg:block w-full max-w-md px-4 py-2 bg-gray-700 text-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder-gray-400 text-sm" aria-label="Search Anime"/>
                 <button id="search-icon-button" class="lg:hidden text-gray-300 hover:text-white p-2 rounded-full hover:bg-gray-700" aria-label="Open search">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                 </button>
-                <div id="search-suggestions" class="hidden">
-                    </div>
+                <div id="search-suggestions" class="hidden"></div>
             </div>
 
             <nav class="hidden lg:flex items-center space-x-2 flex-shrink-0">
-                <a href="/" class="nav-link text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">Home</a>
+                <a href="index.html" class="nav-link text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">Home</a>
                 <a href="#desktop-sidebar" class="nav-link text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">Top 10</a>
             </nav>
 
@@ -105,7 +75,7 @@
                 </button>
             </div>
             <nav class="mb-6 border-b border-gray-700 pb-4">
-                <a href="/" class="mobile-nav-link block py-2.5 px-4 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md transition-colors">Home</a>
+                <a href="index.html" class="mobile-nav-link block py-2.5 px-4 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md transition-colors">Home</a>
                 <a href="#mobile-sidebar-top-heading" class="mobile-nav-link block py-2.5 px-4 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md transition-colors">Top 10 Animes</a>
             </nav>
             <div>
@@ -118,7 +88,6 @@
     </div>
 
     <main id="main-content" class="container mx-auto mt-8 p-4">
-
         <div id="browse-view" class="grid grid-cols-1 lg:grid-cols-4 gap-8">
             <div class="lg:col-span-3">
                 <div id="error-message" class="hidden text-red-500 bg-red-900/50 p-4 rounded-lg mb-4"></div>
@@ -169,872 +138,25 @@
                  </ul>
             </aside>
         </div>
-
-        <div id="detail-view" class="hidden">
-            <button id="back-button" class="mb-6 inline-flex items-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-md transition-colors">
-                <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
-                Back
-            </button>
-
-            <div id="detail-error-message" class="hidden text-red-500 bg-red-900/50 p-4 rounded-lg mb-4"></div>
-            <div id="detail-loading-message" class="hidden text-purple-300 p-4 rounded-lg mb-4 text-center">Loading Details...</div>
-
-            <div id="detail-content-area" class="hidden">
-                <div id="detail-view-banner" class="bg-gray-700 animate-pulse"></div>
-
-                <div id="detail-view-header">
-                    <img id="detail-view-cover-image" src="https://placehold.co/160x240/1f2937/4a5568?text=..." alt="Anime Cover" class="bg-gray-700 animate-pulse"/>
-                    <div class="flex flex-col justify-end pt-10 sm:pt-0 flex-grow">
-                        <div id="detail-title" class="h-10 bg-gray-600 rounded w-3/4 animate-pulse mb-2"></div>
-                        <div id="detail-genres" class="h-4 bg-gray-600 rounded w-1/2 animate-pulse mb-3"></div>
-                        <div id="detail-stats" class="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-400 mt-2">
-                             <span class="h-4 bg-gray-600 rounded w-20 animate-pulse"></span>
-                             <span class="h-4 bg-gray-600 rounded w-24 animate-pulse"></span>
-                             <span class="h-4 bg-gray-600 rounded w-28 animate-pulse"></span>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="detail-view-body">
-                    <div class="space-y-6">
-                        <div>
-                            <h3 class="text-xl font-semibold mb-2 border-l-4 border-purple-500 pl-2">Description</h3>
-                            <p id="detail-description" class="text-sm text-gray-300 leading-relaxed space-y-2">
-                                <span class="block h-3 bg-gray-700 rounded w-full animate-pulse"></span>
-                                <span class="block h-3 bg-gray-700 rounded w-full animate-pulse"></span>
-                                <span class="block h-3 bg-gray-700 rounded w-5/6 animate-pulse"></span>
-                            </p>
-                        </div>
-                        <div id="detail-trailer-section" class="hidden">
-                            <h3 class="text-xl font-semibold mb-2 border-l-4 border-purple-500 pl-2">Trailer</h3>
-                            <div id="detail-trailer" class="aspect-video rounded overflow-hidden bg-gray-700 animate-pulse"></div>
-                        </div>
-                    </div>
-
-                    <div class="space-y-6">
-                         <div>
-                             <h3 class="text-xl font-semibold mb-2 border-l-4 border-purple-500 pl-2">Characters</h3>
-                             <div id="detail-characters" class="detail-list">
-                                 <div class="animate-pulse"><div class="h-28 w-20 bg-gray-700 rounded mx-auto mb-2"></div><div class="h-3 w-16 bg-gray-600 rounded mx-auto"></div></div>
-                                 <div class="animate-pulse"><div class="h-28 w-20 bg-gray-700 rounded mx-auto mb-2"></div><div class="h-3 w-16 bg-gray-600 rounded mx-auto"></div></div>
-                                 <div class="animate-pulse"><div class="h-28 w-20 bg-gray-700 rounded mx-auto mb-2"></div><div class="h-3 w-16 bg-gray-600 rounded mx-auto"></div></div>
-                             </div>
-                         </div>
-                         <div>
-                             <h3 class="text-xl font-semibold mb-2 border-l-4 border-purple-500 pl-2">Staff</h3>
-                             <div id="detail-staff" class="detail-list">
-                                 <div class="animate-pulse"><div class="h-28 w-20 bg-gray-700 rounded mx-auto mb-2"></div><div class="h-3 w-16 bg-gray-600 rounded mx-auto"></div></div>
-                                 <div class="animate-pulse"><div class="h-28 w-20 bg-gray-700 rounded mx-auto mb-2"></div><div class="h-3 w-16 bg-gray-600 rounded mx-auto"></div></div>
-                                 <div class="animate-pulse"><div class="h-28 w-20 bg-gray-700 rounded mx-auto mb-2"></div><div class="h-3 w-16 bg-gray-600 rounded mx-auto"></div></div>
-                             </div>
-                         </div>
-                         <div id="detail-relations-section" class="hidden">
-                             <h3 class="text-xl font-semibold mb-2 border-l-4 border-purple-500 pl-2">Related Anime</h3>
-                             <div id="detail-relations" class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                 <div class="animate-pulse"><div class="h-24 w-full bg-gray-700 rounded mb-1"></div><div class="h-3 w-5/6 bg-gray-600 rounded"></div></div>
-                                 <div class="animate-pulse"><div class="h-24 w-full bg-gray-700 rounded mb-1"></div><div class="h-3 w-5/6 bg-gray-600 rounded"></div></div>
-                             </div>
-                         </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </main>
+        </main>
 
     <footer class="bg-gray-800 mt-12 p-4 text-center text-gray-400 text-sm">
-        <p>© <span id="footer-year"></span> AniStream Mockup (HTML). Data sourced from AniList.</p>
+        <p>© <span id="footer-year"></span> AniStream Mockup. Data sourced from AniList.</p>
         <p>This is a conceptual clone for demonstration purposes.</p>
-        <p class="mt-2 text-xs text-gray-500">Note: For page reloads on specific anime URLs (e.g., /anime/123) to work correctly, the web server needs to be configured to serve this HTML file for those paths.</p>
     </footer>
 
     <script src="https://unpkg.com/swiper/swiper-bundle.min.js"></script>
-
+    <script src="script.js"></script>
     <script>
+        // Ensure the DOM is loaded before trying to initialize
         document.addEventListener('DOMContentLoaded', () => {
-
-            // --- State ---
-            let currentView = 'browse'; // 'browse' or 'detail'
-            let searchTimeoutId = null; // For debouncing search
-            let featuredSwiper = null; // Reference to the featured Swiper instance
-
-            // --- DOM Element References ---
-            const mainContent = document.getElementById('main-content');
-            const browseView = document.getElementById('browse-view');
-            const detailView = document.getElementById('detail-view');
-            const backButton = document.getElementById('back-button');
-            const detailContentArea = document.getElementById('detail-content-area');
-            const detailErrorMessage = document.getElementById('detail-error-message');
-            const detailLoadingMessage = document.getElementById('detail-loading-message');
-            const mainHeader = document.getElementById('main-header');
-            const headerTitle = document.getElementById('header-title');
-            const searchInput = document.getElementById('search-input');
-            const searchIconButton = document.getElementById('search-icon-button');
-            const searchSuggestionsContainer = document.getElementById('search-suggestions');
-            const mobileMenuButton = document.getElementById('mobile-menu-button');
-            const mobileSidebarContainer = document.getElementById('mobile-sidebar-container');
-            const mobileSidebar = document.getElementById('mobile-sidebar');
-            const closeSidebarButton = document.getElementById('close-sidebar-button');
-            const sidebarOverlay = document.getElementById('sidebar-overlay');
-            const mobileNavLinks = document.querySelectorAll('.mobile-nav-link');
-            const swiperWrapperFeatured = document.getElementById('swiper-wrapper-featured');
-            const trendingGrid = document.getElementById('trending-grid');
-            const popularGrid = document.getElementById('popular-grid');
-            const topAnimeListDesktop = document.getElementById('top-anime-list-desktop');
-            const topAnimeListMobile = document.getElementById('top-anime-list-mobile');
-            const topAnimeListBottomMobile = document.getElementById('top-anime-list-bottom-mobile');
-            const errorMessageDiv = document.getElementById('error-message');
-            const footerYearSpan = document.getElementById('footer-year');
-            const detailBanner = document.getElementById('detail-view-banner');
-            const detailCoverImage = document.getElementById('detail-view-cover-image');
-            const detailTitle = document.getElementById('detail-title');
-            const detailGenres = document.getElementById('detail-genres');
-            const detailStats = document.getElementById('detail-stats');
-            const detailDescription = document.getElementById('detail-description');
-            const detailTrailerSection = document.getElementById('detail-trailer-section');
-            const detailTrailer = document.getElementById('detail-trailer');
-            const detailCharacters = document.getElementById('detail-characters');
-            const detailStaff = document.getElementById('detail-staff');
-            const detailRelationsSection = document.getElementById('detail-relations-section');
-            const detailRelations = document.getElementById('detail-relations');
-
-            // Set footer year
-            if(footerYearSpan) footerYearSpan.textContent = new Date().getFullYear();
-
-            // --- View Management & Routing ---
-
-            /**
-             * Shows the specified view ('browse' or 'detail') and updates the browser history.
-             * @param {string} viewName - The name of the view to show ('browse' or 'detail').
-             * @param {string|null} animeId - The ID of the anime for the detail view.
-             * @param {boolean} replaceState - If true, use history.replaceState instead of pushState.
-             */
-            function showView(viewName, animeId = null, replaceState = false) {
-                currentView = viewName;
-                let url = '/'; // Default to root for home/browse
-                let title = 'AniStream - Home';
-
-                // Reset scroll position only when navigating via link click, not on popstate/initial load
-                if (!replaceState) {
-                    window.scrollTo(0, 0);
-                }
-
-                if (viewName === 'browse') {
-                    if(browseView) browseView.classList.remove('hidden');
-                    if(detailView) detailView.classList.add('hidden');
-                    url = '/'; // Use root path for browse/home
-                    title = 'AniStream - Home';
-                } else if (viewName === 'detail' && animeId) {
-                    if(browseView) browseView.classList.add('hidden');
-                    if(detailView) detailView.classList.remove('hidden');
-                    // Reset detail view state to loading
-                    if(detailContentArea) detailContentArea.classList.add('hidden');
-                    if(detailLoadingMessage) detailLoadingMessage.classList.remove('hidden');
-                    if(detailErrorMessage) detailErrorMessage.classList.add('hidden');
-                    url = `/anime/${animeId}`;
-                    title = `AniStream - Loading...`; // Title updated later in displayAnimeDetails
-                } else {
-                    // Fallback to browse if view is unknown or ID missing for detail
-                    console.warn(`Invalid view or missing ID for detail view. Falling back to browse. View: ${viewName}, ID: ${animeId}`);
-                    if(browseView) browseView.classList.remove('hidden');
-                    if(detailView) detailView.classList.add('hidden');
-                    url = '/';
-                    title = 'AniStream - Home';
-                    viewName = 'browse'; // Correct the state
-                    currentView = 'browse';
-                }
-
-                // Update URL using History API
-                const state = { view: viewName, id: animeId };
-                if (replaceState) {
-                    history.replaceState(state, title, url);
-                } else {
-                    // Only push state if it's different from the current state to avoid duplicates
-                    if (window.location.pathname !== url || JSON.stringify(history.state) !== JSON.stringify(state)) {
-                        history.pushState(state, title, url);
-                    }
-                }
-                document.title = title; // Update page title
+            // Call the initialization function specific to the index page
+            if (typeof initIndexPage === 'function') {
+                initIndexPage();
+            } else {
+                console.error("Initialization function 'initIndexPage' not found in script.js");
             }
-
-            // Handle Browser Back/Forward Navigation
-            window.addEventListener('popstate', (event) => {
-                if (event.state) {
-                    const { view, id } = event.state;
-                    console.log("Popstate event:", event.state); // Debugging
-                    if (view === 'detail' && id) {
-                        // Re-fetch details when navigating back/forward to a detail page
-                        fetchAnimeDetails(id, true); // Pass true to indicate it's from popstate/navigation
-                    } else if (view === 'browse') {
-                        // Show browse view
-                        showView('browse', null, true); // Use replaceState as we are reacting to history change
-                        // Optionally re-fetch browse data if needed, or assume it's fresh enough
-                        // fetchBrowseData();
-                    } else {
-                         // Fallback if state is unexpected
-                         console.warn("Popstate with unexpected state:", event.state);
-                         routeInitialRequest(true); // Re-evaluate the URL, replace state
-                    }
-                } else {
-                    // Handle cases where state is null (e.g., initial load navigated away and then back)
-                    console.log("Popstate with null state, re-routing based on URL"); // Debugging
-                    routeInitialRequest(true); // Re-evaluate the URL, replace state
-                }
-            });
-
-            /**
-             * Routes the initial request based on the window.location.pathname.
-             * Fetches necessary data for the determined view.
-             * @param {boolean} replaceState - Whether to replace the history state (used by popstate).
-             */
-            function routeInitialRequest(replaceState = true) { // Default to replaceState for initial load
-                const path = window.location.pathname;
-                console.log("Routing initial request for path:", path); // Debugging
-                const detailMatch = path.match(/^\/anime\/(\d+)$/); // Matches /anime/123
-
-                if (detailMatch && detailMatch[1]) {
-                    const animeId = detailMatch[1];
-                    console.log("Initial route is detail view for ID:", animeId); // Debugging
-                    fetchAnimeDetails(animeId, replaceState); // Fetch details, replace/push state handled within
-                } else if (path === '/' || path === '/browse' || path === '') { // Handle root, /browse, or empty path
-                    console.log("Initial route is browse view"); // Debugging
-                    showView('browse', null, replaceState); // Show browse, replace/push state
-                    fetchBrowseData(); // Fetch browse data
-                } else {
-                    // Handle unknown paths - redirect to home/browse view
-                    console.warn(`Unknown path "${path}". Redirecting to home.`); // Debugging
-                    showView('browse', null, true); // Force replace state for unknown paths
-                    fetchBrowseData();
-                }
-            }
-
-            // --- Mobile Menu Logic ---
-            function openMobileMenu() { if (mobileSidebarContainer && mobileSidebar && sidebarOverlay) { mobileSidebarContainer.classList.remove('pointer-events-none'); sidebarOverlay.classList.remove('hidden'); mobileSidebar.classList.remove('-translate-x-full'); document.body.classList.add('modal-open'); } }
-            function closeMobileMenu() { if (mobileSidebarContainer && mobileSidebar && sidebarOverlay) { mobileSidebar.classList.add('-translate-x-full'); sidebarOverlay.classList.add('hidden'); mobileSidebarContainer.classList.add('pointer-events-none'); document.body.classList.remove('modal-open'); } }
-
-            if (mobileMenuButton) mobileMenuButton.addEventListener('click', openMobileMenu);
-            if (closeSidebarButton) closeSidebarButton.addEventListener('click', closeMobileMenu);
-            if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeMobileMenu);
-
-            mobileNavLinks.forEach(link => {
-                link.addEventListener('click', (e) => {
-                    const href = link.getAttribute('href');
-                    // Handle internal anchor links (like #top-anime...)
-                    if (href && href.startsWith('#')) {
-                        // Allow default behavior for anchor links (scrolling)
-                        // Close the menu after a short delay to allow scroll to start
-                        setTimeout(closeMobileMenu, 100);
-                    }
-                    // Handle navigation links ('/')
-                    else if (href === '/') {
-                        e.preventDefault(); // Prevent full page reload
-                        showView('browse'); // Navigate using JS router
-                        closeMobileMenu();
-                    }
-                    // For any other links (if added later), let the browser handle them or add specific logic
-                    else {
-                         closeMobileMenu();
-                    }
-                });
-            });
-
-
-             // --- Search Logic ---
-             function toggleMobileSearch(show) {
-                 if (window.innerWidth >= 1024) return; // Only on small screens
-                 if (show) {
-                     if(headerTitle) headerTitle.classList.add('hidden');
-                     if(mobileMenuButton) mobileMenuButton.classList.add('hidden');
-                     if(searchIconButton) searchIconButton.classList.add('hidden');
-                     if(searchInput) {
-                         searchInput.classList.remove('hidden');
-                         searchInput.classList.add('block','w-full');
-                         searchInput.focus();
-                     }
-                 } else {
-                      if(headerTitle) headerTitle.classList.remove('hidden');
-                      if(mobileMenuButton) mobileMenuButton.classList.remove('hidden');
-                      if(searchIconButton) searchIconButton.classList.remove('hidden');
-                      if(searchInput) {
-                          searchInput.classList.add('hidden');
-                          searchInput.classList.remove('block','w-full');
-                          searchInput.value = '';
-                      }
-                      hideSearchSuggestions();
-                 }
-             }
-
-             function showSearchSuggestions() { if(searchSuggestionsContainer) searchSuggestionsContainer.classList.remove('hidden'); }
-             function hideSearchSuggestions() { if(searchSuggestionsContainer) searchSuggestionsContainer.classList.add('hidden'); }
-             function debounce(func, delay) { return function(...args) { clearTimeout(searchTimeoutId); searchTimeoutId = setTimeout(() => { func.apply(this, args); }, delay); }; }
-
-             const debouncedFetchSuggestions = debounce(fetchSearchSuggestions, 350);
-
-             if(searchIconButton) searchIconButton.addEventListener('click', () => toggleMobileSearch(true));
-
-             if(searchInput) {
-                 searchInput.addEventListener('input', (e) => { const searchTerm = e.target.value.trim(); if (searchTerm.length >= 3) { debouncedFetchSuggestions(searchTerm); } else { hideSearchSuggestions(); } });
-                 searchInput.addEventListener('blur', () => { setTimeout(() => { if (document.activeElement !== searchInput && !searchSuggestionsContainer.contains(document.activeElement)) { hideSearchSuggestions(); if (window.innerWidth < 1024) { toggleMobileSearch(false); } } }, 150); });
-             }
-
-             // Close suggestions on click outside
-             document.addEventListener('click', (event) => { if (searchInput && searchSuggestionsContainer && !searchInput.contains(event.target) && !searchSuggestionsContainer.contains(event.target) && !searchIconButton.contains(event.target)) { hideSearchSuggestions(); if (window.innerWidth < 1024 && !searchInput.classList.contains('hidden')) { toggleMobileSearch(false); } } });
-
-
-            // --- AniList API Logic ---
-            const ANILIST_API_URL = 'https://graphql.anilist.co';
-
-            // GraphQL Queries (kept the same as provided)
-            const ANILIST_BROWSE_QUERY = `
-                query ($page: Int, $perPageTrending: Int, $perPagePopularGrid: Int, $perPageTop: Int, $season: MediaSeason, $seasonYear: Int) {
-                    trending: Page(page: $page, perPage: $perPageTrending) {
-                        media(sort: TRENDING_DESC, type: ANIME, isAdult: false) {
-                            ...mediaBrowseFields
-                        }
-                    }
-                    popular: Page(page: $page, perPage: $perPagePopularGrid) { # Renamed variable for clarity
-                        media(sort: POPULARITY_DESC, type: ANIME, isAdult: false, season: $season, seasonYear: $seasonYear) {
-                            ...mediaBrowseFields
-                        }
-                    }
-                    top: Page(page: $page, perPage: $perPageTop) {
-                        media(sort: SCORE_DESC, type: ANIME, isAdult: false) {
-                            ...mediaBrowseFields
-                        }
-                    }
-                }
-                fragment mediaBrowseFields on Media {
-                    id
-                    title { romaji english native }
-                    coverImage { extraLarge large color }
-                    bannerImage
-                    averageScore
-                    popularity
-                    episodes
-                    status
-                    genres
-                    format
-                    description(asHtml: false)
-                }
-            `;
-
-            const ANILIST_DETAIL_QUERY = `
-                query ($id: Int) {
-                    Media(id: $id, type: ANIME) {
-                        id
-                        title { romaji english native }
-                        description(asHtml: false)
-                        genres
-                        averageScore
-                        popularity
-                        status
-                        episodes
-                        duration
-                        format
-                        season
-                        seasonYear
-                        startDate { year month day }
-                        endDate { year month day }
-                        coverImage { extraLarge large color }
-                        bannerImage
-                        trailer { id site thumbnail }
-                        characters(sort: [ROLE, RELEVANCE, ID], perPage: 12) {
-                            edges {
-                                role
-                                node { id name { full } image { large } }
-                            }
-                        }
-                        staff(sort: [RELEVANCE, ID], perPage: 12) {
-                            edges {
-                                role
-                                node { id name { full } image { large } }
-                            }
-                        }
-                        relations {
-                            edges {
-                                relationType(version: 2)
-                                node { id type format title { romaji english native } coverImage { large } }
-                            }
-                        }
-                        studios(isMain: true) { nodes { id name } }
-                    }
-                }
-            `;
-
-             const ANILIST_SEARCH_QUERY = `
-                 query ($search: String, $perPage: Int) {
-                     Page(page: 1, perPage: $perPage) {
-                         media(search: $search, type: ANIME, sort: SEARCH_MATCH, isAdult: false) {
-                             id
-                             title { romaji english native }
-                             coverImage { medium }
-                             format
-                         }
-                     }
-                 }
-             `;
-
-            function getCurrentSeason() { const now = new Date(); const month = now.getMonth(); const year = now.getFullYear(); let season; if (month >= 0 && month <= 2) season = 'WINTER'; else if (month >= 3 && month <= 5) season = 'SPRING'; else if (month >= 6 && month <= 8) season = 'SUMMER'; else season = 'FALL'; return { season, year }; }
-
-            // --- HTML Generation Helpers ---
-            function sanitizeDescription(desc) { if (!desc) return 'No description available.'; return desc.replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, ''); }
-
-            function createFeaturedSlideHTML(anime) {
-                const title = anime.title.english || anime.title.romaji || anime.title.native || 'Untitled';
-                const imageUrl = anime.bannerImage || anime.coverImage.extraLarge || `https://placehold.co/1200x450/${(anime.coverImage.color || '7e22ce').substring(1)}/ffffff?text=Featured`;
-                const fallbackImage = `https://placehold.co/1200x450/${(anime.coverImage.color || '7e22ce').substring(1)}/ffffff?text=Featured`;
-                const description = sanitizeDescription(anime.description);
-                const genres = anime.genres ? anime.genres.slice(0, 3).join(' • ') : 'N/A';
-                // Use an <a> tag for the slide for better semantics and potential right-click behavior
-                return `
-                    <a href="/anime/${anime.id}" class="swiper-slide cursor-pointer block" data-id="${anime.id}" style="background-image: url('${imageUrl}')" onerror="this.style.backgroundImage='url(\\'${fallbackImage}\\')'">
-                        <div class="slide-text-content p-6 md:p-8 lg:p-10 w-full md:w-3/4 lg:w-2/3 pointer-events-none">
-                            <p class="text-xs uppercase tracking-wider text-gray-400 mb-1">${genres}</p>
-                            <h2 class="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-2 line-clamp-2">${title}</h2>
-                            <p class="text-sm text-gray-300 mb-4 line-clamp-2 hidden sm:block">${description}</p>
-                            <span class="inline-block bg-purple-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300 text-sm shadow-md pointer-events-auto mt-2">
-                                More Info
-                            </span>
-                        </div>
-                    </a>
-                `;
-            }
-
-            function createAnimeCardHTML(anime) {
-                const title = anime.title.english || anime.title.romaji || anime.title.native || 'Untitled';
-                const imageUrl = anime.coverImage.large || `https://placehold.co/185x265/${(anime.coverImage.color || '1a202c').substring(1)}/e2e8f0?text=No+Image`;
-                const fallbackImage = `https://placehold.co/185x265/${(anime.coverImage.color || '1a202c').substring(1)}/e2e8f0?text=No+Image`;
-                const score = anime.averageScore ? `${anime.averageScore}%` : 'N/A';
-                const episodes = anime.episodes ? `${anime.episodes} Ep` : (anime.status === 'RELEASING' ? 'Airing' : 'N/A');
-                const genres = anime.genres ? anime.genres.slice(0, 3).join(', ') : 'N/A';
-                // Use an <a> tag for the card
-                return `
-                    <a href="/anime/${anime.id}" class="block bg-gray-800 rounded-lg overflow-hidden shadow-lg cursor-pointer group transition-all duration-300 hover:scale-105 hover:shadow-purple-900/30" data-id="${anime.id}">
-                        <img src="${imageUrl}" alt="${title}" class="w-full h-48 sm:h-56 md:h-64 object-cover pointer-events-none" onerror="this.onerror=null;this.src='${fallbackImage}';" loading="lazy"/>
-                        <div class="p-3 pointer-events-none">
-                            <h3 class="text-sm font-semibold truncate text-white group-hover:text-purple-300 transition-colors" title="${title}">${title}</h3>
-                            <div class="flex justify-between items-center text-xs text-gray-400 mt-1">
-                                <span>${episodes}</span>
-                                <span class="text-yellow-400 flex items-center">
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-3 h-3 mr-1 text-yellow-400"><path fill-rule="evenodd" d="M10.868 2.884c-.321-.772-1.415-.772-1.736 0l-1.83 4.401-4.753.381c-.833.067-1.171 1.107-.536 1.651l3.62 3.102-1.106 4.637c-.194.813.691 1.456 1.405 1.02L10 15.591l4.069 2.485c.713.436 1.598-.207 1.404-1.02l-1.106-4.637 3.62-3.102c.635-.544.297-1.584-.536-1.65l-4.752-.382-1.831-4.401Z" clip-rule="evenodd" /></svg>
-                                    ${score}
-                                </span>
-                            </div>
-                            <div class="text-xs text-gray-500 mt-1 truncate">${genres}</div>
-                        </div>
-                    </a>`;
-            }
-
-            function createTopAnimeListItemHTML(anime, rank) {
-                const title = anime.title.english || anime.title.romaji || anime.title.native || 'Untitled';
-                const imageUrl = anime.coverImage.large || `https://placehold.co/50x70/${(anime.coverImage.color || '1a202c').substring(1)}/e2e8f0?text=N/A`;
-                const fallbackImage = `https://placehold.co/50x70/${(anime.coverImage.color || '1a202c').substring(1)}/e2e8f0?text=N/A`;
-                const score = anime.averageScore ? `${anime.averageScore}%` : 'N/A';
-                 // Use an <a> tag for the list item
-                return `
-                    <li>
-                        <a href="/anime/${anime.id}" class="flex items-center space-x-3 p-2 hover:bg-gray-700 rounded-md transition duration-200 cursor-pointer group" data-id="${anime.id}">
-                            <span class="text-lg font-bold text-purple-400 w-6 text-center flex-shrink-0">${rank + 1}</span>
-                            <img src="${imageUrl}" alt="${title}" class="w-10 h-14 object-cover rounded flex-shrink-0 pointer-events-none" onerror="this.onerror=null;this.src='${fallbackImage}';" loading="lazy"/>
-                            <div class="flex-1 overflow-hidden pointer-events-none">
-                                <h4 class="text-sm font-medium truncate text-white group-hover:text-purple-300 transition-colors" title="${title}">${title}</h4>
-                                <p class="text-xs text-gray-400">Score: ${score}</p>
-                            </div>
-                        </a>
-                    </li>`;
-            }
-
-            function createSearchSuggestionHTML(media) {
-                const title = media.title.english || media.title.romaji || media.title.native || 'Untitled';
-                const imageUrl = media.coverImage.medium || `https://placehold.co/40x60/1f2937/4a5568?text=N/A`;
-                const fallbackImage = `https://placehold.co/40x60/1f2937/4a5568?text=N/A`;
-                const format = media.format ? media.format.replace(/_/g, ' ') : '';
-                 // Use an <a> tag for the suggestion item
-                return `
-                    <a href="/anime/${media.id}" class="flex items-center p-2 hover:bg-gray-700 cursor-pointer suggestion-item" data-id="${media.id}">
-                        <img src="${imageUrl}" alt="${title}" class="w-10 h-14 object-cover rounded mr-3 flex-shrink-0 pointer-events-none" onerror="this.onerror=null;this.src='${fallbackImage}';" loading="lazy"/>
-                        <div class="overflow-hidden pointer-events-none">
-                            <p class="text-sm font-medium text-gray-200 truncate">${title}</p>
-                            <p class="text-xs text-gray-400">${format}</p>
-                        </div>
-                    </a>
-                `;
-            }
-
-            // --- Swiper Initialization ---
-            function initializeFeaturedSwiper() {
-                 if (typeof Swiper === 'undefined') { console.error("Swiper library not loaded."); return; }
-                 if (featuredSwiper) { try { featuredSwiper.destroy(true, true); } catch (e) { console.warn("Error destroying previous Swiper instance:", e); } featuredSwiper = null; }
-                 const swiperContainer = document.querySelector('#featured-swiper');
-                 if (!swiperContainer) { console.error("#featured-swiper container not found."); return; }
-                 const slides = swiperContainer.querySelectorAll('.swiper-slide');
-                 if (slides.length === 0) { console.warn("No slides found in #featured-swiper. Swiper not initialized."); return; }
-
-                 try {
-                     featuredSwiper = new Swiper('#featured-swiper', {
-                         modules: [Swiper.Pagination, Swiper.Autoplay, Swiper.EffectFade], // Ensure modules are correctly referenced if using Swiper v8+
-                         loop: slides.length > 1, // Only loop if more than one slide
-                         autoplay: { delay: 5000, disableOnInteraction: false },
-                         pagination: { el: '#featured-swiper .swiper-pagination', clickable: true },
-                         effect: 'fade',
-                         fadeEffect: { crossFade: true },
-                         observer: true, observeParents: true,
-                         keyboard: { enabled: true, onlyInViewport: false },
-                         a11y: { prevSlideMessage: 'Previous slide', nextSlideMessage: 'Next slide', paginationBulletMessage: 'Go to slide {{index}}' },
-                     });
-                 } catch (e) { console.error("Error initializing Swiper:", e); }
-            }
-
-            // --- Display Browse Data ---
-            function displayBrowseData(data) {
-                const hasTrending = data.trending?.media?.length > 0;
-                const hasPopular = data.popular?.media?.length > 0;
-                const hasTop = data.top?.media?.length > 0;
-
-                // Clear existing content safely
-                if (swiperWrapperFeatured) swiperWrapperFeatured.innerHTML = '';
-                if (trendingGrid) trendingGrid.innerHTML = '';
-                if (popularGrid) popularGrid.innerHTML = '';
-                if (topAnimeListDesktop) topAnimeListDesktop.innerHTML = '';
-                if (topAnimeListMobile) topAnimeListMobile.innerHTML = '';
-                if (topAnimeListBottomMobile) topAnimeListBottomMobile.innerHTML = '';
-
-                // Populate Featured Slider
-                if (hasTrending && swiperWrapperFeatured) {
-                    data.trending.media.forEach(anime => { swiperWrapperFeatured.innerHTML += createFeaturedSlideHTML(anime); });
-                    setTimeout(initializeFeaturedSwiper, 0); // Initialize after DOM update
-                } else if (swiperWrapperFeatured) {
-                    swiperWrapperFeatured.innerHTML = '<div class="flex items-center justify-center h-full"><p class="text-gray-400 p-4">Could not load featured anime.</p></div>';
-                }
-
-                // Populate Trending Grid
-                if (hasTrending && trendingGrid) {
-                    data.trending.media.forEach(anime => { trendingGrid.innerHTML += createAnimeCardHTML(anime); });
-                } else if (trendingGrid) {
-                    trendingGrid.innerHTML = '<p class="text-gray-400 col-span-full">Could not load trending anime.</p>';
-                }
-
-                // Populate Popular Grid
-                if (hasPopular && popularGrid) {
-                    data.popular.media.forEach(anime => { popularGrid.innerHTML += createAnimeCardHTML(anime); });
-                } else if (popularGrid) {
-                    popularGrid.innerHTML = '<p class="text-gray-400 col-span-full">Could not load popular anime for this season.</p>';
-                }
-
-                // Populate Top Anime Lists
-                if (hasTop) {
-                    const topAnimeHTML = data.top.media.map((anime, index) => createTopAnimeListItemHTML(anime, index)).join('');
-                    if (topAnimeListDesktop) topAnimeListDesktop.innerHTML = topAnimeHTML;
-                    if (topAnimeListMobile) topAnimeListMobile.innerHTML = topAnimeHTML;
-                    if (topAnimeListBottomMobile) topAnimeListBottomMobile.innerHTML = topAnimeHTML;
-                } else {
-                    const errorMsg = '<li><p class="text-gray-400 p-2">Could not load top anime.</p></li>';
-                    if (topAnimeListDesktop) topAnimeListDesktop.innerHTML = errorMsg;
-                    if (topAnimeListMobile) topAnimeListMobile.innerHTML = errorMsg;
-                    if (topAnimeListBottomMobile) topAnimeListBottomMobile.innerHTML = errorMsg;
-                }
-            }
-
-            // --- Display Detail Data ---
-            function displayAnimeDetails(media) {
-                if (!media || !detailView) {
-                    console.error("Cannot display details: Media data or detail view element is missing.");
-                    // Optionally show an error message to the user
-                    if(detailLoadingMessage) detailLoadingMessage.classList.add('hidden');
-                    if(detailErrorMessage) {
-                         detailErrorMessage.textContent = `Failed to load details: Invalid data received.`;
-                         detailErrorMessage.classList.remove('hidden');
-                    }
-                    if(detailContentArea) detailContentArea.classList.add('hidden');
-                    document.title = 'AniStream - Error';
-                    return;
-                };
-
-                // Hide loading, show content area
-                if(detailLoadingMessage) detailLoadingMessage.classList.add('hidden');
-                if(detailErrorMessage) detailErrorMessage.classList.add('hidden'); // Ensure error is hidden
-                if(detailContentArea) detailContentArea.classList.remove('hidden'); // Show the content area
-
-                // Update Page Title
-                const pageTitle = media.title.english || media.title.romaji || 'Anime Details';
-                document.title = `AniStream - ${pageTitle}`;
-
-                // Populate Banner
-                if(detailBanner) {
-                    detailBanner.style.backgroundImage = `url('${media.bannerImage || media.coverImage.extraLarge || ''}')`;
-                    detailBanner.classList.remove('animate-pulse', 'bg-gray-700'); // Remove skeleton styles
-                }
-
-                // Populate Cover Image
-                if(detailCoverImage) {
-                    detailCoverImage.src = media.coverImage.large || 'https://placehold.co/160x240/1f2937/4a5568?text=N/A';
-                    detailCoverImage.alt = `${media.title.english || media.title.romaji} Cover`;
-                    detailCoverImage.classList.remove('animate-pulse', 'bg-gray-700');
-                }
-
-                // Populate Title
-                if(detailTitle) {
-                    detailTitle.textContent = media.title.english || media.title.romaji || media.title.native || 'N/A';
-                    detailTitle.className = 'text-2xl sm:text-3xl font-bold text-white mb-1 line-clamp-2'; // Reset classes
-                }
-
-                // Populate Genres
-                if(detailGenres) {
-                    detailGenres.textContent = media.genres?.join(' • ') || 'N/A';
-                     detailGenres.className = 'text-sm text-purple-300 mb-2'; // Reset classes
-                }
-
-                // Populate Stats
-                if(detailStats) {
-                    detailStats.innerHTML = `
-                        <span class="flex items-center"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 mr-1 text-yellow-400"><path fill-rule="evenodd" d="M10.868 2.884c-.321-.772-1.415-.772-1.736 0l-1.83 4.401-4.753.381c-.833.067-1.171 1.107-.536 1.651l3.62 3.102-1.106 4.637c-.194.813.691 1.456 1.405 1.02L10 15.591l4.069 2.485c.713.436 1.598-.207 1.404-1.02l-1.106-4.637 3.62-3.102c.635-.544.297-1.584-.536-1.65l-4.752-.382-1.831-4.401Z" clip-rule="evenodd" /></svg> ${media.averageScore || '--'}%</span>
-                        <span>Status: ${media.status?.replace(/_/g, ' ') || '--'}</span>
-                        <span>Episodes: ${media.episodes || '--'}</span>
-                        <span>Format: ${media.format?.replace(/_/g, ' ') || '--'}</span>
-                        <span>Season: ${media.season || '--'} ${media.seasonYear || '--'}</span>
-                    `;
-                    detailStats.className = 'flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-400 mt-2'; // Reset classes
-                }
-
-                // Populate Description
-                if(detailDescription) {
-                    detailDescription.textContent = sanitizeDescription(media.description) || 'No description available.';
-                    detailDescription.className = 'text-sm text-gray-300 leading-relaxed'; // Reset classes
-                }
-
-                // Populate Trailer
-                if (media.trailer?.site === 'youtube' && media.trailer?.id) {
-                    if(detailTrailer) {
-                        // Use youtube-nocookie.com for enhanced privacy
-                        const youtubeEmbedUrl = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(media.trailer.id)}`;
-                        detailTrailer.innerHTML = `<iframe class="w-full h-full aspect-video" src="${youtubeEmbedUrl}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>`;
-                        detailTrailer.classList.remove('animate-pulse', 'bg-gray-700');
-                    }
-                    if(detailTrailerSection) detailTrailerSection.classList.remove('hidden');
-                } else {
-                    if(detailTrailer) detailTrailer.innerHTML = '';
-                    if(detailTrailerSection) detailTrailerSection.classList.add('hidden');
-                }
-
-                // Populate Characters
-                if (media.characters?.edges?.length > 0 && detailCharacters) {
-                    detailCharacters.innerHTML = media.characters.edges.map(edge => `
-                        <div class="detail-list-item">
-                            <img src="${edge.node.image?.large || 'https://placehold.co/80x110/1f2937/4a5568?text=N/A'}" alt="${edge.node.name?.full || '?'}" loading="lazy" class="shadow-md"/>
-                            <p class="line-clamp-2">${edge.node.name?.full || 'Unknown'}</p>
-                            <p class="text-xs text-gray-500">${edge.role}</p>
-                        </div>`).join('');
-                } else if(detailCharacters) {
-                    detailCharacters.innerHTML = '<p class="text-sm text-gray-400 italic col-span-full">No character data available.</p>';
-                }
-
-                // Populate Staff
-                if (media.staff?.edges?.length > 0 && detailStaff) {
-                    detailStaff.innerHTML = media.staff.edges.map(edge => `
-                        <div class="detail-list-item">
-                            <img src="${edge.node.image?.large || 'https://placehold.co/80x110/1f2937/4a5568?text=N/A'}" alt="${edge.node.name?.full || '?'}" loading="lazy" class="shadow-md"/>
-                            <p class="line-clamp-2">${edge.node.name?.full || 'Unknown'}</p>
-                            <p class="text-xs text-gray-500">${edge.role}</p>
-                        </div>`).join('');
-                } else if(detailStaff) {
-                    detailStaff.innerHTML = '<p class="text-sm text-gray-400 italic col-span-full">No staff data available.</p>';
-                }
-
-                // Populate Relations
-                if (media.relations?.edges?.length > 0 && detailRelations) {
-                     detailRelations.innerHTML = media.relations.edges
-                         .filter(edge => edge.node.type === 'ANIME') // Only show related ANIME
-                         .map(edge => {
-                             const relTitle = edge.node.title.english || edge.node.title.romaji || edge.node.title.native || 'Related Title';
-                             const relImage = edge.node.coverImage?.large || `https://placehold.co/100x150/1f2937/4a5568?text=N/A`;
-                             const relFallbackImage = `https://placehold.co/100x150/1f2937/4a5568?text=N/A`;
-                             // Use an <a> tag for related items
-                             return `
-                                 <a href="/anime/${edge.node.id}" class="block bg-gray-700 rounded overflow-hidden text-center text-xs p-1 cursor-pointer hover:bg-gray-600 transition-colors" data-id="${edge.node.id}" title="${edge.relationType.replace(/_/g, ' ')}">
-                                     <img src="${relImage}" alt="${relTitle}" class="w-full h-24 object-cover mb-1 pointer-events-none" loading="lazy" onerror="this.onerror=null;this.src='${relFallbackImage}';"/>
-                                     <p class="line-clamp-2 text-gray-300 pointer-events-none">${relTitle}</p>
-                                     <p class="text-gray-500 pointer-events-none">${edge.relationType.replace(/_/g, ' ')}</p>
-                                 </a>`;
-                         }).join('');
-
-                     if(detailRelations.innerHTML.trim() !== '') { // Only show section if there are anime relations
-                          if(detailRelationsSection) detailRelationsSection.classList.remove('hidden');
-                     } else {
-                          if(detailRelationsSection) detailRelationsSection.classList.add('hidden');
-                     }
-                } else {
-                     if(detailRelations) detailRelations.innerHTML = '';
-                     if(detailRelationsSection) detailRelationsSection.classList.add('hidden');
-                }
-            }
-
-            // --- Display Search Suggestions ---
-            function displaySearchSuggestions(mediaList) {
-                 if (!searchSuggestionsContainer) return;
-                 if (!mediaList || mediaList.length === 0) {
-                     searchSuggestionsContainer.innerHTML = '<p class="text-gray-400 text-sm p-3 text-center">No results found.</p>';
-                     showSearchSuggestions();
-                     return;
-                 }
-                 searchSuggestionsContainer.innerHTML = mediaList.map(media => createSearchSuggestionHTML(media)).join('');
-                 showSearchSuggestions();
-             }
-
-            // --- Fetch Functions ---
-            async function fetchApi(query, variables) {
-                 const options = {
-                     method: 'POST',
-                     headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                     body: JSON.stringify({ query: query, variables: variables })
-                 };
-                 const response = await fetch(ANILIST_API_URL, options);
-                 if (!response.ok) {
-                     throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
-                 }
-                 const result = await response.json();
-                 if (result.errors) {
-                     console.error('GraphQL Errors:', result.errors);
-                     // Extract a user-friendly message if possible
-                     const message = result.errors[0]?.message || 'Unknown GraphQL error';
-                     throw new Error(`Error fetching data from AniList API: ${message}`);
-                 }
-                 return result.data;
-            }
-
-
-            async function fetchBrowseData() {
-                if(errorMessageDiv) errorMessageDiv.classList.add('hidden');
-                const { season, year } = getCurrentSeason();
-                const variables = {
-                    page: 1,
-                    perPageTrending: 7,
-                    perPagePopularGrid: 10,
-                    perPageTop: 10,
-                    season: season,
-                    seasonYear: year
-                };
-
-                try {
-                    const data = await fetchApi(ANILIST_BROWSE_QUERY, variables);
-                    displayBrowseData(data);
-                } catch (error) {
-                    console.error('Fetch Browse Error:', error);
-                    if(errorMessageDiv) {
-                        errorMessageDiv.textContent = `Failed to load page data: ${error.message}`;
-                        errorMessageDiv.classList.remove('hidden');
-                    }
-                    // Clear or show error states for sections
-                    if (swiperWrapperFeatured) swiperWrapperFeatured.innerHTML = '<div class="flex items-center justify-center h-full"><p class="text-red-400 p-4">Failed to load featured.</p></div>';
-                    if (trendingGrid) trendingGrid.innerHTML = '<p class="text-red-400 col-span-full">Failed to load trending.</p>';
-                    if (popularGrid) popularGrid.innerHTML = '<p class="text-red-400 col-span-full">Failed to load popular.</p>';
-                    const errorMsgTop = '<li><p class="text-red-400 p-2">Failed to load top anime.</p></li>';
-                    if (topAnimeListDesktop) topAnimeListDesktop.innerHTML = errorMsgTop;
-                    if (topAnimeListMobile) topAnimeListMobile.innerHTML = errorMsgTop;
-                    if (topAnimeListBottomMobile) topAnimeListBottomMobile.innerHTML = errorMsgTop;
-                }
-            }
-
-            async function fetchAnimeDetails(animeId, isNavigating = false) {
-                if (!animeId) {
-                    console.error("fetchAnimeDetails called without animeId");
-                    return;
-                }
-
-                // Show loading state and update view/URL
-                // Use replaceState if navigating via history (back/forward/initial load)
-                showView('detail', animeId, isNavigating);
-
-                const variables = { id: parseInt(animeId) };
-
-                try {
-                    const data = await fetchApi(ANILIST_DETAIL_QUERY, variables);
-                    if (!data.Media) {
-                         throw new Error('Anime not found.');
-                    }
-                    displayAnimeDetails(data.Media);
-                } catch (error) {
-                    console.error('Fetch Detail Error:', error);
-                    if(detailLoadingMessage) detailLoadingMessage.classList.add('hidden');
-                    if(detailErrorMessage) {
-                        detailErrorMessage.textContent = `Failed to load details: ${error.message}`;
-                        detailErrorMessage.classList.remove('hidden');
-                    }
-                    if(detailContentArea) detailContentArea.classList.add('hidden'); // Hide content area on error
-                    document.title = 'AniStream - Error'; // Update title on error
-                }
-            }
-
-            async function fetchSearchSuggestions(searchTerm) {
-                if (!searchTerm || searchTerm.length < 3) { hideSearchSuggestions(); return; }
-                const variables = { search: searchTerm, perPage: 6 };
-                try {
-                    const data = await fetchApi(ANILIST_SEARCH_QUERY, variables);
-                    displaySearchSuggestions(data?.Page?.media || []);
-                } catch (error) {
-                    console.error('Fetch Suggestions Error:', error);
-                    if(searchSuggestionsContainer) searchSuggestionsContainer.innerHTML = `<p class="text-red-500 text-sm p-3 text-center">Error loading suggestions.</p>`;
-                    showSearchSuggestions();
-                }
-            }
-
-            // --- Event Delegation for Clicks ---
-            document.body.addEventListener('click', (event) => {
-                // Find the closest ancestor anchor tag with a data-id (for anime links)
-                const targetAnimeLink = event.target.closest('a[data-id]');
-                // Find the closest ancestor anchor tag that is a nav link
-                const targetNavLink = event.target.closest('.nav-link, .mobile-nav-link');
-                // Handle clicks on the main title to go home/browse
-                const targetTitle = event.target.closest('#header-title');
-
-                if (targetAnimeLink) {
-                    // Prevent default navigation behavior for these links
-                    event.preventDefault();
-                    const animeId = targetAnimeLink.dataset.id;
-
-                    // Check if it's a suggestion item to close the suggestions
-                    if (targetAnimeLink.classList.contains('suggestion-item')) {
-                        if(searchInput) searchInput.value = '';
-                        hideSearchSuggestions();
-                        if (window.innerWidth < 1024) { toggleMobileSearch(false); }
-                    }
-
-                    // Fetch details if we have an ID
-                    if (animeId) {
-                        fetchAnimeDetails(animeId); // Let fetchAnimeDetails handle pushState
-                    }
-                } else if (targetNavLink) {
-                     const href = targetNavLink.getAttribute('href');
-                     // Handle Home link explicitly
-                     if (href === '/') {
-                         event.preventDefault();
-                         showView('browse'); // Navigate to browse view, handles pushState
-                         // Optionally re-fetch browse data if needed
-                         // fetchBrowseData();
-                     }
-                     // Let internal # links be handled by the browser/mobile menu logic
-                     else if (href && href.startsWith('#')) {
-                         // Allow default scroll behavior
-                     }
-                     // Handle other potential future nav links here
-                } else if (targetTitle) {
-                     event.preventDefault();
-                     showView('browse'); // Navigate to browse view, handles pushState
-                     // Optionally re-fetch browse data
-                     // fetchBrowseData();
-                }
-            });
-
-            // Back button listener
-            if(backButton) {
-                backButton.addEventListener('click', () => {
-                    // Use history.back() to allow browser to handle state popping
-                    history.back();
-                });
-            }
-
-            // --- Initial Load ---
-            routeInitialRequest(); // Determine view based on initial URL
-
-        }); // End DOMContentLoaded
+        });
     </script>
 </body>
 </html>
