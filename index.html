@@ -10,141 +10,56 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /* Common Styles */
+        /* Common Styles (Consider moving to a separate style.css file) */
         html { scroll-behavior: smooth; }
-        body { font-family: 'Inter', sans-serif; background-color: #f9f9f9; color: #1a202c; } /* Default to light theme */
+        body { font-family: 'Inter', sans-serif; background-color: #1a202c; color: #e2e8f0; }
         body.modal-open { overflow: hidden; }
         ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #edf2f7; }
-        ::-webkit-scrollbar-thumb { background: #a0aec0; border-radius: 4px; }
+        ::-webkit-scrollbar-track { background: #2d3748; }
+        ::-webkit-scrollbar-thumb { background: #4a5568; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #718096; }
         .line-clamp-1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }
         .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }
         .line-clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }
         #featured-swiper { height: 400px; border-radius: 0.5rem; margin-bottom: 2rem; }
         #featured-swiper .swiper-slide { position: relative; overflow: hidden; border-radius: 0.5rem; background-size: cover; background-position: center center; }
-        #featured-swiper .slide-text-content { position: absolute; bottom: 0; left: 0; z-index: 10; padding: 1.5rem; width: 100%; background: linear-gradient(to right, rgba(255, 255, 255, 0.95) 10%, rgba(255, 255, 255, 0.8) 40%, rgba(255, 255, 255, 0) 100%); border-radius: 0 0 0 0.5rem; } /* Light theme gradient */
+        #featured-swiper .slide-text-content { position: absolute; bottom: 0; left: 0; z-index: 10; padding: 1.5rem; width: 100%; background: linear-gradient(to right, rgba(10, 10, 10, 0.95) 10%, rgba(10, 10, 10, 0.8) 40%, rgba(10, 10, 10, 0) 100%); border-radius: 0 0 0 0.5rem; }
         #featured-swiper .swiper-pagination { bottom: 15px !important; }
-        #featured-swiper .swiper-pagination-bullet { background-color: #a0aec0 !important; opacity: 0.7 !important; width: 8px !important; height: 8px !important; transition: background-color 0.3s ease, opacity 0.3s ease !important; }
-        #featured-swiper .swiper-pagination-bullet-active { background-color: #8b5cf6 !important; opacity: 1 !important; }
+        #featured-swiper .swiper-pagination-bullet { background-color: #718096 !important; opacity: 0.7 !important; width: 8px !important; height: 8px !important; transition: background-color 0.3s ease, opacity 0.3s ease !important; }
+        #featured-swiper .swiper-pagination-bullet-active { background-color: #d6bcfa !important; opacity: 1 !important; }
         #mobile-sidebar { transition: transform 0.3s ease-in-out; }
-        #search-suggestions { position: absolute; top: 100%; left: 0; right: 0; z-index: 40; max-height: 300px; overflow-y: auto; background-color: #fff; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 0.375rem 0.375rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); } /* Light theme */
+        #search-suggestions { position: absolute; top: 100%; left: 0; right: 0; z-index: 40; max-height: 300px; overflow-y: auto; background-color: #1f2937; border: 1px solid #374151; border-top: none; border-radius: 0 0 0.375rem 0.375rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3); }
         #search-suggestions::-webkit-scrollbar { width: 5px; }
-        #search-suggestions::-webkit-scrollbar-track { background: #edf2f7; }
-        #search-suggestions::-webkit-scrollbar-thumb { background: #a0aec0; border-radius: 3px;}
-        #search-suggestions::-webkit-scrollbar-thumb:hover { background: #718096; }
-        .top-list-item-skeleton { background-color: #a0aec0; border-radius: 0.375rem; height: 4rem; }
-        .card-skeleton { background-color: #e2e8f0; border-radius: 0.5rem; height: 16rem; }
-        .slider-skeleton { background-color: #a0aec0; border-radius: 0.5rem; }
-        .slider-skeleton .slide-text-content { background: linear-gradient(to right, rgba(247, 250, 252, 0.95) 10%, rgba(247, 250, 252, 0.8) 40%, rgba(247, 250, 252, 0) 100%); } /* Light theme */
-
-        /* --- Dark Mode Styles --- */
-        .dark {
-            background-color: #0f172a;
-            color: #f8fafc;
-        }
-        .dark #main-header {
-            background-color: #0f172a;
-        }
-        .dark #search-input {
-            background-color: #374151;
-            color: #f8fafc;
-            border-color: #4a5568;
-        }
-        .dark #search-input:focus {
-            ring-color: #8b5cf6;
-            border-color: #8b5cf6;
-        }
-        .dark #search-suggestions {
-            background-color: #1f2937;
-            border-color: #4a5568;
-        }
-        .dark .nav-link:hover {
-            background-color: #374151;
-            color: #fff;
-        }
-        .dark #mobile-sidebar {
-            background-color: #1f2937;
-        }
-        .dark .mobile-nav-link:hover {
-            background-color: #374151;
-            color: #fff;
-        }
-        .dark .top-list-item-skeleton {
-            background-color: #4a5568;
-        }
-        .dark .card-skeleton {
-            background-color: #374151;
-        }
-        .dark .slider-skeleton {
-            background-color: #4a5568;
-        }
-        .dark .slider-skeleton .slide-text-content {
-            background: linear-gradient(to right, rgba(30, 30, 30, 0.95) 10%, rgba(30, 30, 30, 0.8) 40%, rgba(30, 30, 30, 0) 100%);
-        }
-         .dark .swiper-pagination-bullet {
-            background-color: #718096 !important;
-        }
-        .dark .swiper-pagination-bullet-active {
-            background-color: #d6bcfa !important;
-        }
-
-        /* --- Detail View Styles --- */
-        #detail-view-banner { height: 300px; md:height: 400px; width: 100%; background-size: cover; background-position: center center; position: relative; border-radius: 0.5rem; overflow: hidden; }
-        #detail-view-banner::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 60%; background: linear-gradient(to top, #f9f9f9, transparent); } /* Light theme gradient */
-        .dark #detail-view-banner::after{
-             background: linear-gradient(to top, #0f172a, transparent);
-        }
-        #detail-view-header { display: flex; flex-direction: column; sm:flex-direction: row; gap: 1rem; sm:gap: 1.5rem; margin-top: -80px; sm:-mt-24; position: relative; z-index: 1; padding: 0 1rem; }
-        #detail-view-cover-image { width: 130px; sm:width: 160px; height: auto; object-fit: cover; border-radius: 0.375rem; border: 3px solid #e2e8f0; flex-shrink: 0; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); } /* Light theme border */
-        .dark #detail-view-cover-image{
-             border-color: #4a5568;
-             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
-        }
-        #detail-view-body { margin-top: 1.5rem; display: grid; grid-template-columns: 1fr; md:grid-template-columns: 2fr 1fr; gap: 2rem; }
-        .detail-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 1rem; }
-        .detail-list-item { text-align: center; font-size: 0.75rem; color: #6b7280; } /* Light theme color */
-        .dark .detail-list-item{
-             color: #d1d5db;
-        }
-        .detail-list-item img { width: 80px; height: 110px; object-fit: cover; border-radius: 0.25rem; margin: 0 auto 0.5rem; }
-         .dark .detail-list-item img{
-             border-color:#4a5568;
-        }
-        /* Skeleton styles needed for initial load */
-        .top-list-item-skeleton { background-color: #a0aec0; border-radius: 0.375rem; height: 4rem; } /* If header has top list */
-         .dark .top-list-item-skeleton {
-             background-color: #4a5568;
-         }
+        #search-suggestions::-webkit-scrollbar-track { background: #374151; }
+        #search-suggestions::-webkit-scrollbar-thumb { background: #6b7280; border-radius: 3px;}
+        #search-suggestions::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+        .top-list-item-skeleton { background-color: #4a5568; border-radius: 0.375rem; height: 4rem; }
+        .card-skeleton { background-color: #2d3748; border-radius: 0.5rem; height: 16rem; }
+        .slider-skeleton { background-color: #4a5568; border-radius: 0.5rem; }
+        .slider-skeleton .slide-text-content { background: linear-gradient(to right, rgba(30, 30, 30, 0.95) 10%, rgba(30, 30, 30, 0.8) 40%, rgba(30, 30, 30, 0) 100%); }
+         /* Detail view specific styles removed from here */
     </style>
 </head>
-<body class="bg-gray-100 text-gray-800">
-    <header id="main-header" class="bg-white bg-opacity-80 backdrop-blur-sm p-4 shadow-md sticky top-0 z-30">
+<body class="bg-gray-900 text-gray-200">
+
+    <header id="main-header" class="bg-gray-900 bg-opacity-80 backdrop-blur-sm p-4 shadow-md sticky top-0 z-30">
         <div class="container mx-auto flex justify-between items-center gap-4">
             <a href="index.html" class="text-2xl font-bold text-purple-400 cursor-pointer flex-shrink-0">AniStream</a>
 
-            <div class="flex-grow relative flex justify-end lg:justify-center items-center gap-2">  <button id="dark-mode-toggle" class="lg:hidden text-gray-700 hover:text-gray-900 p-2 rounded-full hover:bg-gray-200 mr-2" aria-label="Toggle Dark Mode">  <svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5">
-                        <path d="M12 3a6 6 0 0 0 9 9 9 9 0 11-9-9Z"></path>
-                    </svg>
-                </button>
-                <input type="search" id="search-input" placeholder="Search Anime..." class="hidden lg:block w-full max-w-md px-4 py-2 bg-white text-gray-800 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder-gray-400 text-sm" aria-label="Search Anime"/>
-                <button id="search-icon-button" class="lg:hidden text-gray-700 hover:text-gray-900 p-2 rounded-full hover:bg-gray-200" aria-label="Open search">
+            <div class="flex-grow relative flex justify-end lg:justify-center">
+                <input type="search" id="search-input" placeholder="Search Anime..." class="hidden lg:block w-full max-w-md px-4 py-2 bg-gray-700 text-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder-gray-400 text-sm" aria-label="Search Anime"/>
+                <button id="search-icon-button" class="lg:hidden text-gray-300 hover:text-white p-2 rounded-full hover:bg-gray-700" aria-label="Open search">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                 </button>
                 <div id="search-suggestions" class="hidden"></div>
             </div>
 
             <nav class="hidden lg:flex items-center space-x-2 flex-shrink-0">
-                <a href="index.html" class="nav-link text-gray-700 hover:bg-gray-200 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition-colors">Home</a>
-                <a href="#desktop-sidebar" class="nav-link text-gray-700 hover:bg-gray-200 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition-colors">Top 10</a>
-                <button id="dark-mode-toggle-desktop" class="text-gray-700 hover:bg-gray-200 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition-colors" aria-label="Toggle Dark Mode">
-                    <svg id="theme-icon-desktop" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5">
-                        <path d="M12 3a6 6 0 0 0 9 9 9 9 0 11-9-9Z"></path>
-                    </svg>
-                </button>
+                <a href="index.html" class="nav-link text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">Home</a>
+                <a href="#desktop-sidebar" class="nav-link text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">Top 10</a>
             </nav>
 
-            <button id="mobile-menu-button" class="lg:hidden text-gray-700 hover:text-gray-900 focus:outline-none focus:text-gray-900 flex-shrink-0" aria-label="Open menu">
+            <button id="mobile-menu-button" class="lg:hidden text-gray-300 hover:text-white focus:outline-none focus:text-white flex-shrink-0" aria-label="Open menu">
                 <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" /></svg>
             </button>
         </div>
@@ -152,25 +67,19 @@
 
     <div id="mobile-sidebar-container" class="fixed inset-0 z-40 lg:hidden pointer-events-none">
         <div id="sidebar-overlay" class="absolute inset-0 bg-black bg-opacity-60 hidden"></div>
-        <div id="mobile-sidebar" class="absolute inset-y-0 left-0 w-72 bg-white p-4 transform -translate-x-full z-50 shadow-lg overflow-y-auto pointer-events-auto">
+        <div id="mobile-sidebar" class="absolute inset-y-0 left-0 w-72 bg-gray-800 p-4 transform -translate-x-full z-50 shadow-lg overflow-y-auto pointer-events-auto">
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-xl font-bold text-purple-400">Menu</h2>
-                <button id="close-sidebar-button" class="text-gray-400 hover:text-gray-700" aria-label="Close menu">
+                <button id="close-sidebar-button" class="text-gray-400 hover:text-white" aria-label="Close menu">
                     <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
             </div>
-            <nav class="mb-6 border-b border-gray-200 pb-4">
-                <a href="index.html" class="mobile-nav-link block py-2.5 px-4 text-gray-700 hover:bg-gray-200 hover:text-gray-900 rounded-md transition-colors">Home</a>
-                <a href="#top-anime-bottom-mobile" class="mobile-nav-link block py-2.5 px-4 text-gray-700 hover:bg-gray-200 hover:text-gray-900 rounded-md transition-colors">Top 10 Animes</a>
-                <button id="mobile-dark-mode-toggle" class="mobile-nav-link flex items-center justify-between py-2.5 px-4 text-gray-700 hover:bg-gray-200 hover:text-gray-900 rounded-md transition-colors" aria-label="Toggle Dark Mode">
-                    <span>Dark Mode</span>
-                    <svg id="mobile-theme-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5">
-                        <path d="M12 3a6 6 0 0 0 9 9 9 9 0 11-9-9Z"></path>
-                    </svg>
-                </button>
+            <nav class="mb-6 border-b border-gray-700 pb-4">
+                <a href="index.html" class="mobile-nav-link block py-2.5 px-4 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md transition-colors">Home</a>
+                <a href="#top-anime-bottom-mobile" class="mobile-nav-link block py-2.5 px-4 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md transition-colors">Top 10 Animes</a>
             </nav>
             <div>
-                <h2 id="mobile-sidebar-top-heading" class="text-lg font-semibold mb-3 border-l-4 border-purple-500 pl-2 text-gray-700">Top 10 Anime</h2>
+                <h2 id="mobile-sidebar-top-heading" class="text-lg font-semibold mb-3 border-l-4 border-purple-500 pl-2 text-gray-200">Top 10 Anime</h2>
                 <ul id="top-anime-list-mobile" class="space-y-1">
                     <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li>
                 </ul>
@@ -181,19 +90,16 @@
     <main id="main-content" class="container mx-auto mt-8 p-4">
         <div id="browse-view" class="grid grid-cols-1 lg:grid-cols-4 gap-8">
             <div class="lg:col-span-3">
-                <div id="error-message" class="hidden text-red-500 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-                    <strong class="font-bold">Error!</strong>
-                    <span class="block sm:inline" id="error-message-text"></span>
-                </div>
+                <div id="error-message" class="hidden text-red-500 bg-red-900/50 p-4 rounded-lg mb-4"></div>
 
                 <div id="featured-swiper" class="swiper shadow-lg h-[400px] md:h-[450px] rounded-lg overflow-hidden mb-8 md:mb-12">
                     <div class="swiper-wrapper" id="swiper-wrapper-featured">
                         <div class="swiper-slide animate-pulse slider-skeleton">
                             <div class="slide-text-content">
-                                <div class="h-3 w-1/4 bg-gray-300 rounded mb-1"></div>
-                                <div class="h-8 w-3/4 bg-gray-200 rounded mb-2"></div>
-                                <div class="h-4 w-full bg-gray-300 rounded mb-4"></div>
-                                <div class="h-4 w-5/6 bg-gray-300 rounded mb-4"></div>
+                                <div class="h-3 w-1/4 bg-gray-600 rounded mb-1"></div>
+                                <div class="h-8 w-3/4 bg-gray-500 rounded mb-2"></div>
+                                <div class="h-4 w-full bg-gray-600 rounded mb-4"></div>
+                                <div class="h-4 w-5/6 bg-gray-600 rounded mb-4"></div>
                                 <div class="h-10 w-32 bg-purple-700 rounded"></div>
                             </div>
                         </div>
@@ -218,23 +124,23 @@
                 </section>
 
                 <section id="top-anime-bottom-mobile" class="mt-12 mb-8 block lg:hidden">
-                    <h2 class="text-2xl font-semibold mb-4 border-l-4 border-purple-500 pl-3">Top 10 Animes</h2>
-                    <ul id="top-anime-list-bottom-mobile" class="space-y-2">
-                        <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li>
-                    </ul>
-                </section>
+                     <h2 class="text-2xl font-semibold mb-4 border-l-4 border-purple-500 pl-3">Top 10 Animes</h2>
+                     <ul id="top-anime-list-bottom-mobile" class="space-y-2">
+                         <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li>
+                     </ul>
+                 </section>
             </div>
 
-            <aside id="desktop-sidebar" class="hidden lg:block lg:col-span-1 bg-white p-4 rounded-lg shadow-lg h-fit sticky top-[calc(theme(spacing.16)_-_theme(spacing.8))]">
-                <h2 class="text-xl font-semibold mb-4 border-l-4 border-purple-500 pl-3">Top 10 Anime</h2>
-                <ul id="top-anime-list-desktop" class="space-y-3">
-                    <li class="animate-pulse top-list-item-skeleton !h-10"></li> <li class="animate-pulse top-list-item-skeleton !h-10"></li> <li class="animate-pulse top-list-item-skeleton !h-10"></li> <li class="animate-pulse top-list-item-skeleton !h-10"></li> <li class="animate-pulse top-list-item-skeleton !h-10"></li> <li class="animate-pulse top-list-item-skeleton !h-10"></li> <li class="animate-pulse top-list-item-skeleton !h-10"></li> <li class="animate-pulse top-list-item-skeleton !h-10"></li> <li class="animate-pulse top-list-item-skeleton !h-10"></li> <li class="animate-pulse top-list-item-skeleton !h-10"></li>
-                </ul>
+            <aside id="desktop-sidebar" class="hidden lg:block lg:col-span-1 bg-gray-800 p-4 rounded-lg shadow-lg h-fit sticky top-[calc(theme(spacing.16)_-_theme(spacing.8))]">
+                 <h2 class="text-xl font-semibold mb-4 border-l-4 border-purple-500 pl-3">Top 10 Anime</h2>
+                 <ul id="top-anime-list-desktop" class="space-y-3">
+                     <li class="animate-pulse top-list-item-skeleton !h-10"></li> <li class="animate-pulse top-list-item-skeleton !h-10"></li> <li class="animate-pulse top-list-item-skeleton !h-10"></li> <li class="animate-pulse top-list-item-skeleton !h-10"></li> <li class="animate-pulse top-list-item-skeleton !h-10"></li> <li class="animate-pulse top-list-item-skeleton !h-10"></li> <li class="animate-pulse top-list-item-skeleton !h-10"></li> <li class="animate-pulse top-list-item-skeleton !h-10"></li> <li class="animate-pulse top-list-item-skeleton !h-10"></li> <li class="animate-pulse top-list-item-skeleton !h-10"></li>
+                 </ul>
             </aside>
         </div>
-    </main>
+        </main>
 
-    <footer class="bg-white mt-12 p-4 text-center text-gray-600 text-sm">
+    <footer class="bg-gray-800 mt-12 p-4 text-center text-gray-400 text-sm">
         <p>© <span id="footer-year"></span> AniStream Mockup. Data sourced from AniList.</p>
         <p>This is a conceptual clone for demonstration purposes.</p>
     </footer>
