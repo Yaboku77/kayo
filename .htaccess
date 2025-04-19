@@ -1,0 +1,15 @@
+# Enable the rewrite engine. Required for the rules below to work.
+RewriteEngine On
+
+# Set the base directory if your app is in a subdirectory (e.g., /myapp/).
+# Uncomment and modify the line below if needed.
+# RewriteBase /
+
+# If the requested resource is NOT an existing file...
+RewriteCond %{REQUEST_FILENAME} !-f
+# ...and the requested resource is NOT an existing directory...
+RewriteCond %{REQUEST_FILENAME} !-d
+# ...then internally redirect the request to index.html.
+# The [L] flag means this is the last rule to be processed if it matches.
+RewriteRule ^ index.html [L]
+  
