@@ -9,10 +9,10 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /* Common Styles (Consider moving to a separate style.css file) */
+        /* Common Styles */
         html { scroll-behavior: smooth; }
         body { font-family: 'Inter', sans-serif; background-color: #1a202c; color: #e2e8f0; }
-        body.modal-open { overflow: hidden; } /* If mobile menu is kept */
+        body.modal-open { overflow: hidden; }
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #2d3748; }
         ::-webkit-scrollbar-thumb { background: #4a5568; border-radius: 4px; }
@@ -21,13 +21,12 @@
         .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }
         .line-clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }
         .line-clamp-10 { display: -webkit-box; -webkit-line-clamp: 10; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }
-        #mobile-sidebar { transition: transform 0.3s ease-in-out; } /* If mobile menu is kept */
+        #mobile-sidebar { transition: transform 0.3s ease-in-out; }
         #search-suggestions { position: absolute; top: 100%; left: 0; right: 0; z-index: 40; max-height: 300px; overflow-y: auto; background-color: #1f2937; border: 1px solid #374151; border-top: none; border-radius: 0 0 0.375rem 0.375rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3); }
         #search-suggestions::-webkit-scrollbar { width: 5px; }
         #search-suggestions::-webkit-scrollbar-track { background: #374151; }
         #search-suggestions::-webkit-scrollbar-thumb { background: #6b7280; border-radius: 3px;}
         #search-suggestions::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
-        /* Browse view specific styles removed */
 
         /* --- Detail View Styles --- */
          #detail-view-banner { height: 300px; md:height: 400px; width: 100%; background-size: cover; background-position: center center; position: relative; border-radius: 0.5rem; overflow: hidden; }
@@ -38,8 +37,58 @@
          .detail-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 1rem; }
          .detail-list-item { text-align: center; font-size: 0.75rem; color: #d1d5db; }
          .detail-list-item img { width: 80px; height: 110px; object-fit: cover; border-radius: 0.25rem; margin: 0 auto 0.5rem; }
-         /* Skeleton styles needed for initial load */
-        .top-list-item-skeleton { background-color: #4a5568; border-radius: 0.375rem; height: 4rem; } /* If header has top list */
+
+        /* --- Player Styles --- */
+        #player-container {
+            background-color: #000;
+            border-radius: 0.5rem;
+            overflow: hidden; /* Ensure player fits rounded corners */
+            margin-bottom: 1.5rem; /* Add some space below the player */
+            aspect-ratio: 16 / 9; /* Maintain aspect ratio */
+            position: relative; /* Needed for absolute positioning of player */
+        }
+        #player {
+             width: 100%;
+             height: 100%;
+             position: absolute;
+             top: 0;
+             left: 0;
+        }
+        /* Style for episode list */
+        #episode-list {
+            max-height: 300px; /* Limit height and make scrollable */
+            overflow-y: auto;
+            background-color: #2d3748; /* Slightly lighter background */
+            border-radius: 0.375rem;
+            padding: 0.5rem;
+        }
+         #episode-list::-webkit-scrollbar { width: 6px; }
+         #episode-list::-webkit-scrollbar-track { background: #1f2937; }
+         #episode-list::-webkit-scrollbar-thumb { background: #4a5568; border-radius: 3px; }
+         #episode-list::-webkit-scrollbar-thumb:hover { background: #718096; }
+
+        .episode-button {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 0.6rem 1rem;
+            margin-bottom: 0.25rem;
+            font-size: 0.875rem;
+            background-color: #374151;
+            color: #e2e8f0;
+            border: none;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        .episode-button:hover {
+            background-color: #4a5568;
+        }
+         .episode-button.playing {
+            background-color: #7e22ce; /* Purple highlight for playing episode */
+            color: #fff;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-gray-200">
@@ -47,7 +96,6 @@
     <header id="main-header" class="bg-gray-900 bg-opacity-80 backdrop-blur-sm p-4 shadow-md sticky top-0 z-30">
         <div class="container mx-auto flex justify-between items-center gap-4">
             <a href="index.html" class="text-2xl font-bold text-purple-400 cursor-pointer flex-shrink-0">AniStream</a>
-
             <div class="flex-grow relative flex justify-end lg:justify-center">
                 <input type="search" id="search-input" placeholder="Search Anime..." class="hidden lg:block w-full max-w-md px-4 py-2 bg-gray-700 text-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder-gray-400 text-sm" aria-label="Search Anime"/>
                 <button id="search-icon-button" class="lg:hidden text-gray-300 hover:text-white p-2 rounded-full hover:bg-gray-700" aria-label="Open search">
@@ -55,11 +103,9 @@
                 </button>
                 <div id="search-suggestions" class="hidden"></div>
             </div>
-
             <nav class="hidden lg:flex items-center space-x-2 flex-shrink-0">
                  <a href="index.html" class="nav-link text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">Home</a>
-                 </nav>
-
+            </nav>
             <button id="mobile-menu-button" class="lg:hidden text-gray-300 hover:text-white focus:outline-none focus:text-white flex-shrink-0" aria-label="Open menu">
                 <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" /></svg>
             </button>
@@ -77,18 +123,30 @@
              </div>
              <nav class="mb-6 border-b border-gray-700 pb-4">
                  <a href="index.html" class="mobile-nav-link block py-2.5 px-4 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md transition-colors">Home</a>
-                 </nav>
-             </div>
+             </nav>
+         </div>
      </div>
 
     <main id="main-content" class="container mx-auto mt-8 p-4">
-        <div id="detail-view" class=""> <button id="back-button" class="mb-6 inline-flex items-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-md transition-colors">
+
+        <div id="detail-view" class="">
+            <button id="back-button" class="mb-6 inline-flex items-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-md transition-colors">
                 <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
                 Back
             </button>
 
              <div id="detail-error-message" class="hidden text-red-500 bg-red-900/50 p-4 rounded-lg mb-4"></div>
-             <div id="detail-loading-message" class="text-purple-300 p-4 rounded-lg mb-4 text-center">Loading Details...</div> <div id="detail-content-area" class="hidden"> <div id="detail-view-banner" class="bg-gray-700 animate-pulse"></div>
+             <div id="detail-loading-message" class="text-purple-300 p-4 rounded-lg mb-4 text-center">Loading Details...</div>
+
+            <div id="detail-content-area" class="hidden">
+
+                <div id="player-section" class="mb-6">
+                     <h3 class="text-xl font-semibold mb-2 border-l-4 border-purple-500 pl-2">Watch</h3>
+                     <div id="player-container">
+                         <div id="player">Loading player...</div>
+                     </div>
+                     <div id="player-error-message" class="hidden text-red-400 text-sm mt-2"></div>
+                </div>
 
                 <div id="detail-view-header">
                     <img id="detail-view-cover-image" src="https://placehold.co/160x240/1f2937/4a5568?text=..." alt="Anime Cover" class="bg-gray-700 animate-pulse"/>
@@ -105,6 +163,16 @@
 
                 <div id="detail-view-body">
                     <div class="space-y-6">
+                        <div id="episodes-section">
+                             <h3 class="text-xl font-semibold mb-2 border-l-4 border-purple-500 pl-2">Episodes</h3>
+                             <div id="episode-list-container">
+                                 <div id="episode-list-loading" class="text-gray-400 text-sm p-3">Loading episodes...</div>
+                                 <div id="episode-list" class="hidden">
+                                     </div>
+                                 <div id="episode-list-error" class="hidden text-red-400 text-sm p-3">Could not load episodes.</div>
+                             </div>
+                         </div>
+
                         <div>
                             <h3 class="text-xl font-semibold mb-2 border-l-4 border-purple-500 pl-2">Description</h3>
                             <p id="detail-description" class="text-sm text-gray-300 leading-relaxed space-y-2">
@@ -150,15 +218,17 @@
     </main>
 
     <footer class="bg-gray-800 mt-12 p-4 text-center text-gray-400 text-sm">
-        <p>© <span id="footer-year"></span> AniStream Mockup. Data sourced from AniList.</p>
+        <p>© <span id="footer-year"></span> AniStream Mockup. Data sourced from AniList & Consumet.</p>
         <p>This is a conceptual clone for demonstration purposes.</p>
     </footer>
 
+    <script src="https://cdn.jwplayer.com/libraries/YOUR_JWPLAYER_KEY.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hlsjs-p2p-engine@latest/dist/hlsjs-p2p-engine.min.js"></script>
+
     <script src="script.js"></script>
     <script>
-        // Ensure the DOM is loaded before trying to initialize
         document.addEventListener('DOMContentLoaded', () => {
-            // Call the initialization function specific to the anime detail page
             if (typeof initAnimePage === 'function') {
                 initAnimePage();
             } else {
