@@ -1,17 +1,10 @@
 // --- Constants and Global Variables ---
 const ANILIST_API_URL = 'https://graphql.anilist.co';
-// Use the Vercel URL provided by the user for Consumet API
-// Note: Unofficial deployments might be unstable. Consider official sources if issues persist.
-const CONSUMET_API_URL = 'https://api-pearl-seven-88.vercel.app';
-
 let searchTimeoutId = null;
-let featuredSwiper = null; // Swiper instance for index page
-let hlsInstance = null;    // HLS.js instance for detail page
-let p2pEngine = null;   // P2P Engine instance for detail page
-let jwPlayerInstance = null; // JW Player instance for detail page
+let featuredSwiper = null; // Keep Swiper instance reference if used on index
 
 // --- AniList API Queries ---
-// (Keep ANILIST_BROWSE_QUERY, ANILIST_DETAIL_QUERY, ANILIST_SEARCH_QUERY as before)
+// Browse Query (for index.html)
 const ANILIST_BROWSE_QUERY = `
     query ($page: Int, $perPageTrending: Int, $perPagePopularGrid: Int, $perPageTop: Int, $season: MediaSeason, $seasonYear: Int) {
         trending: Page(page: $page, perPage: $perPageTrending) {
@@ -38,6 +31,8 @@ const ANILIST_BROWSE_QUERY = `
         description(asHtml: false)
     }
 `;
+
+// Detail Query (for anime.html)
 const ANILIST_DETAIL_QUERY = `
     query ($id: Int) {
         Media(id: $id, type: ANIME) {
@@ -71,6 +66,8 @@ const ANILIST_DETAIL_QUERY = `
         }
     }
 `;
+
+// Search Query (used by both pages)
 const ANILIST_SEARCH_QUERY = `
     query ($search: String, $perPage: Int) {
         Page(page: 1, perPage: $perPage) {
@@ -86,7 +83,7 @@ const ANILIST_SEARCH_QUERY = `
 
 
 // --- Utility Functions ---
-function getCurrentSeason() { /* ... (same as before) ... */
+function getCurrentSeason() {
     const now = new Date();
     const month = now.getMonth();
     const year = now.getFullYear();
@@ -97,11 +94,14 @@ function getCurrentSeason() { /* ... (same as before) ... */
     else season = 'FALL';
     return { season, year };
 }
-function sanitizeDescription(desc) { /* ... (same as before) ... */
+
+function sanitizeDescription(desc) {
     if (!desc) return 'No description available.';
+    // Basic sanitization: remove <br> and other HTML tags
     return desc.replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '');
 }
-function debounce(func, delay) { /* ... (same as before) ... */
+
+function debounce(func, delay) {
     return function(...args) {
         clearTimeout(searchTimeoutId);
         searchTimeoutId = setTimeout(() => {
@@ -111,29 +111,7 @@ function debounce(func, delay) { /* ... (same as before) ... */
 }
 
 // --- API Fetching ---
-// Generic fetch function - Added logging
-async function fetchApi(url, isJson = true, apiName = 'Generic') {
-    console.log(`[${apiName}] Fetching: ${url}`); // Log the URL being fetched
-    try {
-        const response = await fetch(url);
-        console.log(`[${apiName}] Response Status for ${url}: ${response.status}`); // Log status
-        if (!response.ok) {
-            // Log the response text for more details on 404 or other errors
-            const errorText = await response.text();
-            console.error(`[${apiName}] Response Error Text: ${errorText}`);
-            throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
-        }
-        return isJson ? await response.json() : await response.text();
-    } catch (error) {
-        console.error(`[${apiName}] API Fetch Error for ${url}:`, error);
-        throw error; // Re-throw to be handled by caller
-    }
-}
-
-// Specific fetch for AniList GraphQL - Added logging
-async function fetchAnilistApi(query, variables) {
-    const apiName = 'AniList';
-    console.log(`[${apiName}] Fetching GraphQL with variables:`, variables);
+async function fetchApi(query, variables) {
     try {
         const options = {
             method: 'POST',
@@ -141,35 +119,34 @@ async function fetchAnilistApi(query, variables) {
             body: JSON.stringify({ query: query, variables: variables })
         };
         const response = await fetch(ANILIST_API_URL, options);
-         console.log(`[${apiName}] Response Status: ${response.status}`); // Log status
         if (!response.ok) {
-            const errorText = await response.text();
-            console.error(`[${apiName}] Response Error Text: ${errorText}`);
             throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
         }
         const result = await response.json();
         if (result.errors) {
-            console.error(`[${apiName}] GraphQL Errors:`, result.errors);
+            console.error('GraphQL Errors:', result.errors);
+            // Extract a user-friendly message if possible
             const message = result.errors[0]?.message || 'Unknown GraphQL error';
             throw new Error(`Error fetching data from AniList API: ${message}`);
         }
-        console.log(`[${apiName}] Fetch successful.`);
         return result.data;
     } catch (error) {
-        console.error(`[${apiName}] API Fetch Error:`, error);
+        console.error("API Fetch Error:", error);
+        // Re-throw the error so the calling function can handle UI updates
         throw error;
     }
 }
 
-
 // --- HTML Generation Helpers ---
-// ** Links point to anime.html?id=... **
-function createFeaturedSlideHTML(anime) { /* ... (same as before) ... */
+// ** IMPORTANT: Links now point to anime.html?id=... **
+
+function createFeaturedSlideHTML(anime) {
     const title = anime.title.english || anime.title.romaji || anime.title.native || 'Untitled';
     const imageUrl = anime.bannerImage || anime.coverImage.extraLarge || `https://placehold.co/1200x450/${(anime.coverImage.color || '7e22ce').substring(1)}/ffffff?text=Featured`;
     const fallbackImage = `https://placehold.co/1200x450/${(anime.coverImage.color || '7e22ce').substring(1)}/ffffff?text=Featured`;
     const description = sanitizeDescription(anime.description);
     const genres = anime.genres ? anime.genres.slice(0, 3).join(' • ') : 'N/A';
+    // Link directly to anime.html with query parameter
     return `
         <a href="anime.html?id=${anime.id}" class="swiper-slide cursor-pointer block" style="background-image: url('${imageUrl}')" onerror="this.style.backgroundImage='url(\\'${fallbackImage}\\')'">
             <div class="slide-text-content p-6 md:p-8 lg:p-10 w-full md:w-3/4 lg:w-2/3 pointer-events-none">
@@ -183,13 +160,15 @@ function createFeaturedSlideHTML(anime) { /* ... (same as before) ... */
         </a>
     `;
 }
-function createAnimeCardHTML(anime) { /* ... (same as before) ... */
+
+function createAnimeCardHTML(anime) {
     const title = anime.title.english || anime.title.romaji || anime.title.native || 'Untitled';
     const imageUrl = anime.coverImage.large || `https://placehold.co/185x265/${(anime.coverImage.color || '1a202c').substring(1)}/e2e8f0?text=No+Image`;
     const fallbackImage = `https://placehold.co/185x265/${(anime.coverImage.color || '1a202c').substring(1)}/e2e8f0?text=No+Image`;
     const score = anime.averageScore ? `${anime.averageScore}%` : 'N/A';
     const episodes = anime.episodes ? `${anime.episodes} Ep` : (anime.status === 'RELEASING' ? 'Airing' : 'N/A');
     const genres = anime.genres ? anime.genres.slice(0, 3).join(', ') : 'N/A';
+    // Link directly to anime.html with query parameter
     return `
         <a href="anime.html?id=${anime.id}" class="block bg-gray-800 rounded-lg overflow-hidden shadow-lg cursor-pointer group transition-all duration-300 hover:scale-105 hover:shadow-purple-900/30">
             <img src="${imageUrl}" alt="${title}" class="w-full h-48 sm:h-56 md:h-64 object-cover pointer-events-none" onerror="this.onerror=null;this.src='${fallbackImage}';" loading="lazy"/>
@@ -206,11 +185,13 @@ function createAnimeCardHTML(anime) { /* ... (same as before) ... */
             </div>
         </a>`;
 }
-function createTopAnimeListItemHTML(anime, rank) { /* ... (same as before) ... */
+
+function createTopAnimeListItemHTML(anime, rank) {
     const title = anime.title.english || anime.title.romaji || anime.title.native || 'Untitled';
     const imageUrl = anime.coverImage.large || `https://placehold.co/50x70/${(anime.coverImage.color || '1a202c').substring(1)}/e2e8f0?text=N/A`;
     const fallbackImage = `https://placehold.co/50x70/${(anime.coverImage.color || '1a202c').substring(1)}/e2e8f0?text=N/A`;
     const score = anime.averageScore ? `${anime.averageScore}%` : 'N/A';
+    // Link directly to anime.html with query parameter
     return `
         <li>
             <a href="anime.html?id=${anime.id}" class="flex items-center space-x-3 p-2 hover:bg-gray-700 rounded-md transition duration-200 cursor-pointer group">
@@ -223,11 +204,13 @@ function createTopAnimeListItemHTML(anime, rank) { /* ... (same as before) ... *
             </a>
         </li>`;
 }
-function createSearchSuggestionHTML(media) { /* ... (same as before) ... */
+
+function createSearchSuggestionHTML(media) {
     const title = media.title.english || media.title.romaji || media.title.native || 'Untitled';
     const imageUrl = media.coverImage.medium || `https://placehold.co/40x60/1f2937/4a5568?text=N/A`;
     const fallbackImage = `https://placehold.co/40x60/1f2937/4a5568?text=N/A`;
     const format = media.format ? media.format.replace(/_/g, ' ') : '';
+    // Link directly to anime.html with query parameter
     return `
         <a href="anime.html?id=${media.id}" class="flex items-center p-2 hover:bg-gray-700 cursor-pointer suggestion-item">
             <img src="${imageUrl}" alt="${title}" class="w-10 h-14 object-cover rounded mr-3 flex-shrink-0 pointer-events-none" onerror="this.onerror=null;this.src='${fallbackImage}';" loading="lazy"/>
@@ -241,7 +224,7 @@ function createSearchSuggestionHTML(media) { /* ... (same as before) ... */
 
 
 // --- Swiper Initialization (for index.html) ---
-function initializeFeaturedSwiper(containerSelector = '#featured-swiper') { /* ... (same as before) ... */
+function initializeFeaturedSwiper(containerSelector = '#featured-swiper') {
      if (typeof Swiper === 'undefined') { console.error("Swiper library not loaded."); return; }
      if (featuredSwiper) { try { featuredSwiper.destroy(true, true); } catch (e) { console.warn("Error destroying previous Swiper instance:", e); } featuredSwiper = null; }
      const swiperContainer = document.querySelector(containerSelector);
@@ -265,12 +248,12 @@ function initializeFeaturedSwiper(containerSelector = '#featured-swiper') { /* .
 }
 
 // --- Search Functionality (Common) ---
-function setupSearch(searchInputId = 'search-input', suggestionsContainerId = 'search-suggestions', searchIconButtonId = 'search-icon-button', headerTitleId = 'header-title', mobileMenuButtonId = 'mobile-menu-button') { /* ... (same as before) ... */
+function setupSearch(searchInputId = 'search-input', suggestionsContainerId = 'search-suggestions', searchIconButtonId = 'search-icon-button', headerTitleId = 'header-title', mobileMenuButtonId = 'mobile-menu-button') {
     const searchInput = document.getElementById(searchInputId);
     const searchSuggestionsContainer = document.getElementById(suggestionsContainerId);
-    const searchIconButton = document.getElementById(searchIconButtonId);
-    const headerTitle = document.getElementById(headerTitleId);
-    const mobileMenuButton = document.getElementById(mobileMenuButtonId);
+    const searchIconButton = document.getElementById(searchIconButtonId); // Mobile only button
+    const headerTitle = document.getElementById(headerTitleId); // Mobile only interaction
+    const mobileMenuButton = document.getElementById(mobileMenuButtonId); // Mobile only interaction
 
 
     function showSearchSuggestions() { if(searchSuggestionsContainer) searchSuggestionsContainer.classList.remove('hidden'); }
@@ -280,7 +263,7 @@ function setupSearch(searchInputId = 'search-input', suggestionsContainerId = 's
          if (!term || term.length < 3) { hideSearchSuggestions(); return; }
          const variables = { search: term, perPage: 6 };
          try {
-             const data = await fetchAnilistApi(ANILIST_SEARCH_QUERY, variables); // Use AniList fetch
+             const data = await fetchApi(ANILIST_SEARCH_QUERY, variables);
              const mediaList = data?.Page?.media || [];
              if (!searchSuggestionsContainer) return;
              if (mediaList.length === 0) {
@@ -302,27 +285,32 @@ function setupSearch(searchInputId = 'search-input', suggestionsContainerId = 's
         searchInput.addEventListener('input', (e) => {
             debouncedFetch(e.target.value.trim());
         });
+
+        // Hide suggestions on blur, with a delay to allow clicking on a suggestion
         searchInput.addEventListener('blur', () => {
             setTimeout(() => {
+                // Check if the focus is now outside the input AND the suggestions container
                 if (document.activeElement !== searchInput && !searchSuggestionsContainer?.contains(document.activeElement)) {
                     hideSearchSuggestions();
+                    // Also hide mobile search bar if needed
                     if (window.innerWidth < 1024 && !searchInput.classList.contains('hidden')) {
-                       toggleMobileSearch(false);
+                       toggleMobileSearch(false); // Assuming toggleMobileSearch is available globally or passed in
                     }
                 }
-            }, 150);
+            }, 150); // Delay to allow click event on suggestions
         });
     }
 
+    // Mobile search toggle logic (needs access to header elements)
     function toggleMobileSearch(show) {
-         if (window.innerWidth >= 1024) return;
+         if (window.innerWidth >= 1024) return; // Only on small screens
          if (show) {
              if(headerTitle) headerTitle.classList.add('hidden');
              if(mobileMenuButton) mobileMenuButton.classList.add('hidden');
              if(searchIconButton) searchIconButton.classList.add('hidden');
              if(searchInput) {
-                 searchInput.classList.remove('hidden', 'lg:block');
-                 searchInput.classList.add('block','w-full');
+                 searchInput.classList.remove('hidden', 'lg:block'); // Ensure it's not hidden and remove lg:block
+                 searchInput.classList.add('block','w-full'); // Make it block and full width
                  searchInput.focus();
              }
          } else {
@@ -330,8 +318,8 @@ function setupSearch(searchInputId = 'search-input', suggestionsContainerId = 's
               if(mobileMenuButton) mobileMenuButton.classList.remove('hidden');
               if(searchIconButton) searchIconButton.classList.remove('hidden');
               if(searchInput) {
-                  searchInput.classList.remove('block','w-full');
-                  searchInput.classList.add('hidden', 'lg:block');
+                  searchInput.classList.remove('block','w-full'); // Remove block/width styles
+                  searchInput.classList.add('hidden', 'lg:block'); // Add back hidden and lg:block
                   searchInput.value = '';
               }
               hideSearchSuggestions();
@@ -342,22 +330,28 @@ function setupSearch(searchInputId = 'search-input', suggestionsContainerId = 's
         searchIconButton.addEventListener('click', () => toggleMobileSearch(true));
     }
 
+    // Global click listener to hide suggestions if clicked outside search area
     document.addEventListener('click', (event) => {
         const isClickInsideSearch = searchInput?.contains(event.target) ||
                                    searchSuggestionsContainer?.contains(event.target) ||
                                    searchIconButton?.contains(event.target);
+
         if (!isClickInsideSearch) {
             hideSearchSuggestions();
+            // Also hide mobile search if it's open and click is outside
             if (window.innerWidth < 1024 && searchInput && !searchInput.classList.contains('hidden')) {
                  toggleMobileSearch(false);
             }
         }
     });
+
+     // Expose toggleMobileSearch if needed by other parts (like mobile menu closing)
+     // window.toggleMobileSearch = toggleMobileSearch;
 }
 
 
 // --- Mobile Menu Functionality (Common) ---
-function setupMobileMenu(menuButtonId = 'mobile-menu-button', sidebarContainerId = 'mobile-sidebar-container', sidebarId = 'mobile-sidebar', overlayId = 'sidebar-overlay', closeButtonId = 'close-sidebar-button', navLinkClass = '.mobile-nav-link') { /* ... (same as before) ... */
+function setupMobileMenu(menuButtonId = 'mobile-menu-button', sidebarContainerId = 'mobile-sidebar-container', sidebarId = 'mobile-sidebar', overlayId = 'sidebar-overlay', closeButtonId = 'close-sidebar-button', navLinkClass = '.mobile-nav-link') {
     const mobileMenuButton = document.getElementById(menuButtonId);
     const mobileSidebarContainer = document.getElementById(sidebarContainerId);
     const mobileSidebar = document.getElementById(sidebarId);
@@ -389,13 +383,17 @@ function setupMobileMenu(menuButtonId = 'mobile-menu-button', sidebarContainerId
 
     mobileNavLinks.forEach(link => {
         link.addEventListener('click', (e) => {
+            // Allow default navigation for actual links (like index.html)
+            // Allow default behavior for anchor links (#...)
+            // Just close the menu
+            // Use setTimeout to ensure navigation isn't interrupted on slower devices
             setTimeout(closeMobileMenu, 50);
         });
     });
 }
 
 // --- Footer Year (Common) ---
-function setFooterYear(footerYearId = 'footer-year') { /* ... (same as before) ... */
+function setFooterYear(footerYearId = 'footer-year') {
     const footerYearSpan = document.getElementById(footerYearId);
     if(footerYearSpan) footerYearSpan.textContent = new Date().getFullYear();
 }
@@ -409,9 +407,10 @@ function setFooterYear(footerYearId = 'footer-year') { /* ... (same as before) .
 async function initIndexPage() {
     console.log("Initializing Index Page");
     setFooterYear();
-    setupSearch();
-    setupMobileMenu();
+    setupSearch(); // Use default IDs
+    setupMobileMenu(); // Use default IDs
 
+    // Get DOM elements specific to index page
     const swiperWrapperFeatured = document.getElementById('swiper-wrapper-featured');
     const trendingGrid = document.getElementById('trending-grid');
     const popularGrid = document.getElementById('popular-grid');
@@ -420,20 +419,25 @@ async function initIndexPage() {
     const topAnimeListBottomMobile = document.getElementById('top-anime-list-bottom-mobile');
     const errorMessageDiv = document.getElementById('error-message');
 
+    // Fetch and display browse data
     if (errorMessageDiv) errorMessageDiv.classList.add('hidden');
     const { season, year } = getCurrentSeason();
     const variables = {
-        page: 1, perPageTrending: 7, perPagePopularGrid: 10, perPageTop: 10,
-        season: season, seasonYear: year
+        page: 1,
+        perPageTrending: 7, // For slider + grid
+        perPagePopularGrid: 10,
+        perPageTop: 10,
+        season: season,
+        seasonYear: year
     };
 
     try {
-        const data = await fetchAnilistApi(ANILIST_BROWSE_QUERY, variables); // Use AniList fetch
+        const data = await fetchApi(ANILIST_BROWSE_QUERY, variables);
         const hasTrending = data.trending?.media?.length > 0;
         const hasPopular = data.popular?.media?.length > 0;
         const hasTop = data.top?.media?.length > 0;
 
-        // Clear skeletons
+        // Clear skeletons / existing content
         if (swiperWrapperFeatured) swiperWrapperFeatured.innerHTML = '';
         if (trendingGrid) trendingGrid.innerHTML = '';
         if (popularGrid) popularGrid.innerHTML = '';
@@ -441,26 +445,48 @@ async function initIndexPage() {
         if (topAnimeListMobile) topAnimeListMobile.innerHTML = '';
         if (topAnimeListBottomMobile) topAnimeListBottomMobile.innerHTML = '';
 
-        // Populate sections...
+
+        // Populate Featured Slider
         if (hasTrending && swiperWrapperFeatured) {
-            data.trending.media.slice(0, 5).forEach(anime => { swiperWrapperFeatured.innerHTML += createFeaturedSlideHTML(anime); });
-            setTimeout(() => initializeFeaturedSwiper(), 0);
-        } else if (swiperWrapperFeatured) { /* Show error/empty state */ }
+            // Use first few trending items for slider
+            data.trending.media.slice(0, 5).forEach(anime => {
+                 swiperWrapperFeatured.innerHTML += createFeaturedSlideHTML(anime);
+            });
+            setTimeout(() => initializeFeaturedSwiper(), 0); // Initialize after DOM update
+        } else if (swiperWrapperFeatured) {
+            swiperWrapperFeatured.innerHTML = '<div class="flex items-center justify-center h-full"><p class="text-gray-400 p-4">Could not load featured anime.</p></div>';
+        }
 
+        // Populate Trending Grid (use all fetched trending items)
         if (hasTrending && trendingGrid) {
-            data.trending.media.forEach(anime => { trendingGrid.innerHTML += createAnimeCardHTML(anime); });
-        } else if (trendingGrid) { /* Show error/empty state */ }
+            data.trending.media.forEach(anime => {
+                trendingGrid.innerHTML += createAnimeCardHTML(anime);
+            });
+        } else if (trendingGrid) {
+            trendingGrid.innerHTML = '<p class="text-gray-400 col-span-full">Could not load trending anime.</p>';
+        }
 
+        // Populate Popular Grid
         if (hasPopular && popularGrid) {
-            data.popular.media.forEach(anime => { popularGrid.innerHTML += createAnimeCardHTML(anime); });
-        } else if (popularGrid) { /* Show error/empty state */ }
+            data.popular.media.forEach(anime => {
+                popularGrid.innerHTML += createAnimeCardHTML(anime);
+            });
+        } else if (popularGrid) {
+            popularGrid.innerHTML = '<p class="text-gray-400 col-span-full">Could not load popular anime for this season.</p>';
+        }
 
+        // Populate Top Anime Lists
         if (hasTop) {
             const topAnimeHTML = data.top.media.map((anime, index) => createTopAnimeListItemHTML(anime, index)).join('');
             if (topAnimeListDesktop) topAnimeListDesktop.innerHTML = topAnimeHTML;
             if (topAnimeListMobile) topAnimeListMobile.innerHTML = topAnimeHTML;
             if (topAnimeListBottomMobile) topAnimeListBottomMobile.innerHTML = topAnimeHTML;
-        } else { /* Show error/empty state */ }
+        } else {
+            const errorMsg = '<li><p class="text-gray-400 p-2">Could not load top anime.</p></li>';
+            if (topAnimeListDesktop) topAnimeListDesktop.innerHTML = errorMsg;
+            if (topAnimeListMobile) topAnimeListMobile.innerHTML = errorMsg;
+            if (topAnimeListBottomMobile) topAnimeListBottomMobile.innerHTML = errorMsg;
+        }
 
     } catch (error) {
         console.error('Fetch Browse Error:', error);
@@ -468,136 +494,33 @@ async function initIndexPage() {
             errorMessageDiv.textContent = `Failed to load page data: ${error.message}`;
             errorMessageDiv.classList.remove('hidden');
         }
+        // Display errors in sections
+        if (swiperWrapperFeatured) swiperWrapperFeatured.innerHTML = '<div class="flex items-center justify-center h-full"><p class="text-red-400 p-4">Failed to load featured.</p></div>';
+        if (trendingGrid) trendingGrid.innerHTML = '<p class="text-red-400 col-span-full">Failed to load trending.</p>';
+        if (popularGrid) popularGrid.innerHTML = '<p class="text-red-400 col-span-full">Failed to load popular.</p>';
+        const errorMsgTop = '<li><p class="text-red-400 p-2">Failed to load top anime.</p></li>';
+        if (topAnimeListDesktop) topAnimeListDesktop.innerHTML = errorMsgTop;
+        if (topAnimeListMobile) topAnimeListMobile.innerHTML = errorMsgTop;
+        if (topAnimeListBottomMobile) topAnimeListBottomMobile.innerHTML = errorMsgTop;
     }
 }
 
 
 /**
- * Initializes the Anime Detail Page (with Streaming)
+ * Initializes the Anime Detail Page
  */
 async function initAnimePage() {
     console.log("Initializing Anime Detail Page");
     setFooterYear();
-    setupSearch();
-    setupMobileMenu();
+    setupSearch(); // Setup search on this page too
+    setupMobileMenu(); // Setup mobile menu
 
-    // --- Get DOM Elements ---
+    // Get DOM elements specific to detail page
+    const detailView = document.getElementById('detail-view'); // Main container
     const detailContentArea = document.getElementById('detail-content-area');
     const detailErrorMessage = document.getElementById('detail-error-message');
     const detailLoadingMessage = document.getElementById('detail-loading-message');
     const backButton = document.getElementById('back-button');
-    // ... (get all other detail elements: banner, cover, title, genres, etc.)
-    const episodeListContainer = document.getElementById('episode-list');
-    const episodeListLoading = document.getElementById('episode-list-loading');
-    const episodeListError = document.getElementById('episode-list-error');
-    const playerErrorMessage = document.getElementById('player-error-message');
-
-    // --- Get Anime ID from URL ---
-    const urlParams = new URLSearchParams(window.location.search);
-    const animeId = urlParams.get('id'); // This is the AniList ID
-
-    if (!animeId) { /* ... (handle missing ID error) ... */
-        console.error("Anime ID not found in URL query parameters.");
-        if (detailLoadingMessage) detailLoadingMessage.classList.add('hidden');
-        if (detailErrorMessage) {
-            detailErrorMessage.textContent = "Error: No Anime ID specified in the URL.";
-            detailErrorMessage.classList.remove('hidden');
-        }
-        return;
-    }
-
-    // --- Setup Back Button ---
-    if (backButton) {
-        backButton.addEventListener('click', () => { history.back(); });
-    }
-
-    // --- Fetch Data Sequentially with Specific Error Handling ---
-    let media; // To store AniList data
-    try {
-        // 1. Fetch AniList Details
-        const anilistData = await fetchAnilistApi(ANILIST_DETAIL_QUERY, { id: parseInt(animeId) });
-        media = anilistData.Media; // Assign to outer scope variable
-
-        if (!media) {
-            throw new Error('Anime details not found on AniList.');
-        }
-        console.log("Successfully fetched AniList details.");
-        displayAnimeMetadata(media); // Display metadata now
-
-        // 2. Fetch Consumet Episode Info (only after AniList success)
-        if (episodeListLoading) episodeListLoading.classList.remove('hidden');
-        if (episodeListContainer) episodeListContainer.classList.add('hidden');
-        if (episodeListError) episodeListError.classList.add('hidden');
-
-        const consumetInfoUrl = `${CONSUMET_API_URL}/anime/zoro/info?id=${animeId}`;
-        // Use generic fetchApi with specific name for logging
-        const episodeData = await fetchApi(consumetInfoUrl, true, 'Consumet Info');
-
-        if (!episodeData || !episodeData.episodes || episodeData.episodes.length === 0) {
-            throw new Error('No episodes found from provider.');
-        }
-        console.log(`Successfully fetched ${episodeData.episodes.length} episodes.`);
-
-        // --- Populate Episode List ---
-        if (episodeListContainer) {
-            episodeListContainer.innerHTML = ''; // Clear previous
-            episodeData.episodes.forEach(ep => {
-                const button = document.createElement('button');
-                // Use ep.number and ep.title (if available) for button text
-                button.textContent = `Episode ${ep.number}${ep.title ? ` - ${ep.title}` : ''}`;
-                button.classList.add('episode-button');
-                button.dataset.episodeId = ep.id;
-                button.addEventListener('click', () => {
-                    loadEpisode(ep.id);
-                    document.querySelectorAll('.episode-button.playing').forEach(btn => btn.classList.remove('playing'));
-                    button.classList.add('playing');
-                });
-                episodeListContainer.appendChild(button);
-            });
-            episodeListContainer.classList.remove('hidden');
-        }
-        if (episodeListLoading) episodeListLoading.classList.add('hidden');
-
-        // --- Show Content ---
-        if (detailLoadingMessage) detailLoadingMessage.classList.add('hidden');
-        if (detailContentArea) detailContentArea.classList.remove('hidden');
-
-    } catch (error) {
-        // This block catches errors from EITHER fetchAnilistApi OR fetchApi(consumetInfoUrl)
-        console.error('Error initializing anime page:', error);
-        if (detailLoadingMessage) detailLoadingMessage.classList.add('hidden');
-        if (episodeListLoading) episodeListLoading.classList.add('hidden'); // Hide episode loading too
-
-        // Display a general error, or check which data failed
-        let specificErrorMsg = `Failed to load anime data: ${error.message}`;
-        if (!media && error.message.includes('AniList')) {
-            specificErrorMsg = `Failed to load core anime details: ${error.message}`;
-        } else if (media && error.message.includes('provider')) { // Check if episode fetch failed
-             specificErrorMsg = `Failed to load episodes: ${error.message}`;
-             if (episodeListError) { // Show error in episode list section
-                 episodeListError.textContent = specificErrorMsg;
-                 episodeListError.classList.remove('hidden');
-             }
-        }
-
-        // Show general error message area
-        if (detailErrorMessage) {
-            detailErrorMessage.textContent = specificErrorMsg;
-            detailErrorMessage.classList.remove('hidden');
-        }
-
-        // Hide main content area if essential data failed
-        if (!media && detailContentArea) {
-             detailContentArea.classList.add('hidden');
-        }
-    }
-}
-
-/**
- * Helper to display non-episode metadata from AniList data
- */
-function displayAnimeMetadata(media) {
-    // Get elements (could be passed as args or retrieved here)
     const detailBanner = document.getElementById('detail-view-banner');
     const detailCoverImage = document.getElementById('detail-view-cover-image');
     const detailTitle = document.getElementById('detail-title');
@@ -611,259 +534,153 @@ function displayAnimeMetadata(media) {
     const detailRelationsSection = document.getElementById('detail-relations-section');
     const detailRelations = document.getElementById('detail-relations');
 
-    // Update Page Title
-    const pageTitle = media.title.english || media.title.romaji || 'Anime Details';
-    document.title = `AniStream - ${pageTitle}`;
+    // --- Get Anime ID from URL ---
+    const urlParams = new URLSearchParams(window.location.search);
+    const animeId = urlParams.get('id');
 
-    // Populate elements... (same logic as before)
-     if(detailBanner) {
-        detailBanner.style.backgroundImage = `url('${media.bannerImage || media.coverImage.extraLarge || ''}')`;
-        detailBanner.classList.remove('animate-pulse', 'bg-gray-700');
-    }
-    if(detailCoverImage) {
-        detailCoverImage.src = media.coverImage.large || 'https://placehold.co/160x240/1f2937/4a5568?text=N/A';
-        detailCoverImage.alt = `${media.title.english || media.title.romaji} Cover`;
-        detailCoverImage.classList.remove('animate-pulse', 'bg-gray-700');
-    }
-    if(detailTitle) {
-        detailTitle.textContent = media.title.english || media.title.romaji || media.title.native || 'N/A';
-        detailTitle.className = 'text-2xl sm:text-3xl font-bold text-white mb-1 line-clamp-2';
-    }
-    if(detailGenres) {
-        detailGenres.textContent = media.genres?.join(' • ') || 'N/A';
-        detailGenres.className = 'text-sm text-purple-300 mb-2';
-    }
-    if(detailStats) {
-        detailStats.innerHTML = `
-            <span class="flex items-center"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 mr-1 text-yellow-400"><path fill-rule="evenodd" d="M10.868 2.884c-.321-.772-1.415-.772-1.736 0l-1.83 4.401-4.753.381c-.833.067-1.171 1.107-.536 1.651l3.62 3.102-1.106 4.637c-.194.813.691 1.456 1.405 1.02L10 15.591l4.069 2.485c.713.436 1.598-.207 1.404-1.02l-1.106-4.637 3.62-3.102c.635-.544.297-1.584-.536-1.65l-4.752-.382-1.831-4.401Z" clip-rule="evenodd" /></svg> ${media.averageScore || '--'}%</span>
-            <span>Status: ${media.status?.replace(/_/g, ' ') || '--'}</span>
-            <span>Episodes: ${media.episodes || '--'}</span>
-            <span>Format: ${media.format?.replace(/_/g, ' ') || '--'}</span>
-            <span>Season: ${media.season || '--'} ${media.seasonYear || '--'}</span>
-        `;
-        detailStats.className = 'flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-400 mt-2';
-    }
-    if(detailDescription) {
-        detailDescription.textContent = sanitizeDescription(media.description) || 'No description available.';
-        detailDescription.className = 'text-sm text-gray-300 leading-relaxed';
-    }
-    if (media.trailer?.site === 'youtube' && media.trailer?.id) {
-        if(detailTrailer) {
-            const youtubeEmbedUrl = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(media.trailer.id)}`;
-            detailTrailer.innerHTML = `<iframe class="w-full h-full aspect-video" src="${youtubeEmbedUrl}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>`;
-            detailTrailer.classList.remove('animate-pulse', 'bg-gray-700');
+    if (!animeId) {
+        console.error("Anime ID not found in URL query parameters.");
+        if (detailLoadingMessage) detailLoadingMessage.classList.add('hidden');
+        if (detailErrorMessage) {
+            detailErrorMessage.textContent = "Error: No Anime ID specified in the URL.";
+            detailErrorMessage.classList.remove('hidden');
         }
-        if(detailTrailerSection) detailTrailerSection.classList.remove('hidden');
-    } else {
-        if(detailTrailer) detailTrailer.innerHTML = '';
-        if(detailTrailerSection) detailTrailerSection.classList.add('hidden');
-    }
-    if (media.characters?.edges?.length > 0 && detailCharacters) {
-         detailCharacters.innerHTML = media.characters.edges.map(edge => `
-            <div class="detail-list-item">
-                <img src="${edge.node.image?.large || 'https://placehold.co/80x110/1f2937/4a5568?text=N/A'}" alt="${edge.node.name?.full || '?'}" loading="lazy" class="shadow-md"/>
-                <p class="line-clamp-2">${edge.node.name?.full || 'Unknown'}</p>
-                <p class="text-xs text-gray-500">${edge.role}</p>
-            </div>`).join('');
-    } else if(detailCharacters) {
-        detailCharacters.innerHTML = '<p class="text-sm text-gray-400 italic col-span-full">No character data available.</p>';
-    }
-    if (media.staff?.edges?.length > 0 && detailStaff) {
-        detailStaff.innerHTML = media.staff.edges.map(edge => `
-            <div class="detail-list-item">
-                <img src="${edge.node.image?.large || 'https://placehold.co/80x110/1f2937/4a5568?text=N/A'}" alt="${edge.node.name?.full || '?'}" loading="lazy" class="shadow-md"/>
-                <p class="line-clamp-2">${edge.node.name?.full || 'Unknown'}</p>
-                <p class="text-xs text-gray-500">${edge.role}</p>
-            </div>`).join('');
-    } else if(detailStaff) {
-        detailStaff.innerHTML = '<p class="text-sm text-gray-400 italic col-span-full">No staff data available.</p>';
-    }
-    if (media.relations?.edges?.length > 0 && detailRelations) {
-         detailRelations.innerHTML = media.relations.edges
-             .filter(edge => edge.node.type === 'ANIME')
-             .map(edge => {
-                 const relTitle = edge.node.title.english || edge.node.title.romaji || edge.node.title.native || 'Related Title';
-                 const relImage = edge.node.coverImage?.large || `https://placehold.co/100x150/1f2937/4a5568?text=N/A`;
-                 const relFallbackImage = `https://placehold.co/100x150/1f2937/4a5568?text=N/A`;
-                 return `
-                     <a href="anime.html?id=${edge.node.id}" class="block bg-gray-700 rounded overflow-hidden text-center text-xs p-1 cursor-pointer hover:bg-gray-600 transition-colors" title="${edge.relationType.replace(/_/g, ' ')}">
-                         <img src="${relImage}" alt="${relTitle}" class="w-full h-24 object-cover mb-1 pointer-events-none" loading="lazy" onerror="this.onerror=null;this.src='${relFallbackImage}';"/>
-                         <p class="line-clamp-2 text-gray-300 pointer-events-none">${relTitle}</p>
-                         <p class="text-gray-500 pointer-events-none">${edge.relationType.replace(/_/g, ' ')}</p>
-                     </a>`;
-             }).join('');
-
-         if(detailRelations.innerHTML.trim() !== '') {
-              if(detailRelationsSection) detailRelationsSection.classList.remove('hidden');
-         } else {
-              if(detailRelationsSection) detailRelationsSection.classList.add('hidden');
-         }
-    } else {
-         if(detailRelations) detailRelations.innerHTML = '';
-         if(detailRelationsSection) detailRelationsSection.classList.add('hidden');
-    }
-}
-
-
-/**
- * Loads a specific episode stream using Consumet and sets up the player.
- * @param {string} episodeId - The episode ID from Consumet.
- */
-async function loadEpisode(episodeId) {
-    console.log(`Loading episode: ${episodeId}`);
-    const playerErrorMessage = document.getElementById('player-error-message');
-    if (playerErrorMessage) playerErrorMessage.classList.add('hidden'); // Hide previous errors
-    const playerContainer = document.getElementById('player');
-    if(playerContainer) playerContainer.innerHTML = 'Loading stream...'; // Indicate loading
-
-    try {
-        const watchUrl = `${CONSUMET_API_URL}/anime/zoro/watch?episodeId=${encodeURIComponent(episodeId)}`;
-        // Use generic fetchApi with specific name for logging
-        const streamData = await fetchApi(watchUrl, true, 'Consumet Watch');
-
-        if (!streamData || !streamData.sources || streamData.sources.length === 0) {
-            throw new Error('No streaming sources found for this episode.');
-        }
-
-        let hlsSource = streamData.sources.find(s => s.quality === 'default' && s.url.includes('.m3u8'));
-        if (!hlsSource) {
-            hlsSource = streamData.sources.find(s => s.url.includes('.m3u8'));
-        }
-
-        if (!hlsSource || !hlsSource.url) {
-            throw new Error('Could not find a valid HLS (m3u8) source.');
-        }
-
-        console.log("Found HLS source:", hlsSource.url);
-        setupPlayer(hlsSource.url);
-
-    } catch (error) {
-        console.error("Error loading episode stream:", error);
-        if (playerErrorMessage) {
-            playerErrorMessage.textContent = `Error loading stream: ${error.message}`;
-            playerErrorMessage.classList.remove('hidden');
-        }
-        if(playerContainer) playerContainer.innerHTML = '<p class="text-red-500 p-4">Failed to load stream.</p>';
-        destroyPlayer();
-    }
-}
-
-/**
- * Destroys existing player instances (HLS, P2P Engine, JW Player)
- */
-function destroyPlayer() {
-     if (jwPlayerInstance) {
-        try {
-            jwPlayerInstance.remove();
-        } catch (e) { console.warn("Error removing JW Player instance:", e); }
-        jwPlayerInstance = null;
-    }
-    if (hlsInstance) {
-        hlsInstance.destroy();
-        hlsInstance = null;
-    }
-     if (p2pEngine) {
-        p2pEngine.destroy();
-        p2pEngine = null;
-    }
-    // Clear player div content as fallback
-    const playerDiv = document.getElementById('player');
-    // Don't clear the div if JW Player remove failed, just in case
-    // if (playerDiv) playerDiv.innerHTML = '';
-}
-
-
-/**
- * Sets up the HLS P2P player with JW Player integration.
- * @param {string} m3u8Url - The URL of the HLS stream.
- */
-function setupPlayer(m3u8Url) {
-    destroyPlayer(); // Ensure previous instances are gone
-
-    const playerDivId = 'player';
-    const playerDiv = document.getElementById(playerDivId);
-    const playerErrorMessage = document.getElementById('player-error-message');
-    if (playerErrorMessage) playerErrorMessage.classList.add('hidden'); // Hide previous errors
-
-
-    // --- Check if libraries are loaded ---
-    if (typeof jwplayer === 'undefined') {
-        console.error('JW Player library is not loaded.');
-         if(playerDiv) playerDiv.innerHTML = '<p class="text-red-500 p-4">Error: JW Player library not found. Check script tag and license key.</p>';
-        return;
-    }
-     if (typeof Hls === 'undefined' || !Hls.isSupported()) { // Check HLS support
-        console.error('hls.js library is not loaded or not supported by this browser.');
-        if(playerDiv) playerDiv.innerHTML = '<p class="text-red-500 p-4">Error: HLS playback not supported in this browser.</p>';
-        return;
-    }
-    if (typeof P2PEngine === 'undefined') {
-        console.warn('hlsjs-p2p-engine library not loaded. Playback will proceed without P2P.');
-        // We can choose to proceed without P2P
-        // If P2P is essential, uncomment the error below and return
-        // if(playerDiv) playerDiv.innerHTML = '<p class="text-red-500 p-4">Error: P2P engine library not found.</p>';
-        // return;
+        return; // Stop execution
     }
 
-    try {
-        // --- P2P Engine Config (Only if loaded) ---
-        let hlsConfig = {};
-        if (typeof P2PEngine !== 'undefined') {
-            console.log("Setting up P2P Engine");
-            p2pEngine = new P2PEngine.Engine(); // Use default config
-            hlsConfig.loader = p2pEngine.createLoaderClass();
-        } else {
-            console.log("P2P Engine not found, using default HLS loader.");
-        }
-
-        hlsInstance = new Hls(hlsConfig);
-
-        // --- JW Player Setup ---
-        // Ensure the player div is empty before setup
-        if(playerDiv) playerDiv.innerHTML = '';
-
-        jwPlayerInstance = jwplayer(playerDivId).setup({
-            // We will load the source via hls.js, not directly here
-            autostart: true,
-            // Mute recommended for autoplay success
-            // mute: true,
+    // --- Setup Back Button ---
+    if (backButton) {
+        backButton.addEventListener('click', () => {
+            history.back(); // Simple back navigation
         });
+    }
 
-        // --- Integrate hls.js with JW Player ---
-        jwPlayerInstance.on('ready', function() {
-            const videoElement = document.querySelector(`#${playerDivId}_video`); // JW Player 8+ uses _video suffix
-            if (videoElement) {
-                console.log("Attaching hls.js to video element");
-                hlsInstance.attachMedia(videoElement);
-            } else {
-                 console.error(`Could not find video element with selector #${playerDivId}_video`);
-                 if(playerDiv) playerDiv.innerHTML = '<p class="text-red-500 p-4">Error: Could not initialize player video element.</p>';
+    // --- Fetch and Display Anime Details ---
+    const variables = { id: parseInt(animeId) };
+    try {
+        const data = await fetchApi(ANILIST_DETAIL_QUERY, variables);
+        const media = data.Media; // Extract the media object
+
+        if (!media) {
+            throw new Error('Anime not found for the given ID.');
+        }
+
+        // --- Populate Detail View ---
+        // Hide loading, show content area
+        if(detailLoadingMessage) detailLoadingMessage.classList.add('hidden');
+        if(detailErrorMessage) detailErrorMessage.classList.add('hidden');
+        if(detailContentArea) detailContentArea.classList.remove('hidden');
+
+        // Update Page Title
+        const pageTitle = media.title.english || media.title.romaji || 'Anime Details';
+        document.title = `AniStream - ${pageTitle}`;
+
+        // Banner
+        if(detailBanner) {
+            detailBanner.style.backgroundImage = `url('${media.bannerImage || media.coverImage.extraLarge || ''}')`;
+            detailBanner.classList.remove('animate-pulse', 'bg-gray-700');
+        }
+        // Cover Image
+        if(detailCoverImage) {
+            detailCoverImage.src = media.coverImage.large || 'https://placehold.co/160x240/1f2937/4a5568?text=N/A';
+            detailCoverImage.alt = `${media.title.english || media.title.romaji} Cover`;
+            detailCoverImage.classList.remove('animate-pulse', 'bg-gray-700');
+        }
+        // Title
+        if(detailTitle) {
+            detailTitle.textContent = media.title.english || media.title.romaji || media.title.native || 'N/A';
+            detailTitle.className = 'text-2xl sm:text-3xl font-bold text-white mb-1 line-clamp-2';
+        }
+        // Genres
+        if(detailGenres) {
+            detailGenres.textContent = media.genres?.join(' • ') || 'N/A';
+            detailGenres.className = 'text-sm text-purple-300 mb-2';
+        }
+        // Stats
+        if(detailStats) {
+            detailStats.innerHTML = `
+                <span class="flex items-center"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 mr-1 text-yellow-400"><path fill-rule="evenodd" d="M10.868 2.884c-.321-.772-1.415-.772-1.736 0l-1.83 4.401-4.753.381c-.833.067-1.171 1.107-.536 1.651l3.62 3.102-1.106 4.637c-.194.813.691 1.456 1.405 1.02L10 15.591l4.069 2.485c.713.436 1.598-.207 1.404-1.02l-1.106-4.637 3.62-3.102c.635-.544.297-1.584-.536-1.65l-4.752-.382-1.831-4.401Z" clip-rule="evenodd" /></svg> ${media.averageScore || '--'}%</span>
+                <span>Status: ${media.status?.replace(/_/g, ' ') || '--'}</span>
+                <span>Episodes: ${media.episodes || '--'}</span>
+                <span>Format: ${media.format?.replace(/_/g, ' ') || '--'}</span>
+                <span>Season: ${media.season || '--'} ${media.seasonYear || '--'}</span>
+            `;
+            detailStats.className = 'flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-400 mt-2';
+        }
+        // Description
+        if(detailDescription) {
+            detailDescription.textContent = sanitizeDescription(media.description) || 'No description available.';
+            detailDescription.className = 'text-sm text-gray-300 leading-relaxed';
+        }
+        // Trailer
+        if (media.trailer?.site === 'youtube' && media.trailer?.id) {
+            if(detailTrailer) {
+                const youtubeEmbedUrl = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(media.trailer.id)}`;
+                detailTrailer.innerHTML = `<iframe class="w-full h-full aspect-video" src="${youtubeEmbedUrl}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>`;
+                detailTrailer.classList.remove('animate-pulse', 'bg-gray-700');
             }
-        });
+            if(detailTrailerSection) detailTrailerSection.classList.remove('hidden');
+        } else {
+            if(detailTrailer) detailTrailer.innerHTML = '';
+            if(detailTrailerSection) detailTrailerSection.classList.add('hidden');
+        }
+        // Characters
+        if (media.characters?.edges?.length > 0 && detailCharacters) {
+            detailCharacters.innerHTML = media.characters.edges.map(edge => `
+                <div class="detail-list-item">
+                    <img src="${edge.node.image?.large || 'https://placehold.co/80x110/1f2937/4a5568?text=N/A'}" alt="${edge.node.name?.full || '?'}" loading="lazy" class="shadow-md"/>
+                    <p class="line-clamp-2">${edge.node.name?.full || 'Unknown'}</p>
+                    <p class="text-xs text-gray-500">${edge.role}</p>
+                </div>`).join('');
+        } else if(detailCharacters) {
+            detailCharacters.innerHTML = '<p class="text-sm text-gray-400 italic col-span-full">No character data available.</p>';
+        }
+        // Staff
+        if (media.staff?.edges?.length > 0 && detailStaff) {
+            detailStaff.innerHTML = media.staff.edges.map(edge => `
+                <div class="detail-list-item">
+                    <img src="${edge.node.image?.large || 'https://placehold.co/80x110/1f2937/4a5568?text=N/A'}" alt="${edge.node.name?.full || '?'}" loading="lazy" class="shadow-md"/>
+                    <p class="line-clamp-2">${edge.node.name?.full || 'Unknown'}</p>
+                    <p class="text-xs text-gray-500">${edge.role}</p>
+                </div>`).join('');
+        } else if(detailStaff) {
+            detailStaff.innerHTML = '<p class="text-sm text-gray-400 italic col-span-full">No staff data available.</p>';
+        }
+        // Relations
+        if (media.relations?.edges?.length > 0 && detailRelations) {
+             detailRelations.innerHTML = media.relations.edges
+                 .filter(edge => edge.node.type === 'ANIME') // Only show related ANIME
+                 .map(edge => {
+                     const relTitle = edge.node.title.english || edge.node.title.romaji || edge.node.title.native || 'Related Title';
+                     const relImage = edge.node.coverImage?.large || `https://placehold.co/100x150/1f2937/4a5568?text=N/A`;
+                     const relFallbackImage = `https://placehold.co/100x150/1f2937/4a5568?text=N/A`;
+                     // Link to anime.html for related items
+                     return `
+                         <a href="anime.html?id=${edge.node.id}" class="block bg-gray-700 rounded overflow-hidden text-center text-xs p-1 cursor-pointer hover:bg-gray-600 transition-colors" title="${edge.relationType.replace(/_/g, ' ')}">
+                             <img src="${relImage}" alt="${relTitle}" class="w-full h-24 object-cover mb-1 pointer-events-none" loading="lazy" onerror="this.onerror=null;this.src='${relFallbackImage}';"/>
+                             <p class="line-clamp-2 text-gray-300 pointer-events-none">${relTitle}</p>
+                             <p class="text-gray-500 pointer-events-none">${edge.relationType.replace(/_/g, ' ')}</p>
+                         </a>`;
+                 }).join('');
 
-         hlsInstance.loadSource(m3u8Url);
-
-         // Optional: Listen for HLS errors
-         hlsInstance.on(Hls.Events.ERROR, function (event, data) {
-             console.error('HLS.js Error:', data);
-             const playerErrorMessage = document.getElementById('player-error-message');
-             if (playerErrorMessage && data.fatal) {
-                  playerErrorMessage.textContent = `Playback Error: ${data.type} - ${data.details}`;
-                  playerErrorMessage.classList.remove('hidden');
-                  // Consider destroying the player on fatal errors
-                  // destroyPlayer();
+             if(detailRelations.innerHTML.trim() !== '') {
+                  if(detailRelationsSection) detailRelationsSection.classList.remove('hidden');
+             } else {
+                  if(detailRelationsSection) detailRelationsSection.classList.add('hidden');
              }
-         });
-
-         console.log("Player setup initiated.");
+        } else {
+             if(detailRelations) detailRelations.innerHTML = '';
+             if(detailRelationsSection) detailRelationsSection.classList.add('hidden');
+        }
 
     } catch (error) {
-        console.error("Error setting up player:", error);
-        const playerErrorMessage = document.getElementById('player-error-message');
-        if (playerErrorMessage) {
-            playerErrorMessage.textContent = `Player setup failed: ${error.message}`;
-            playerErrorMessage.classList.remove('hidden');
+        console.error('Fetch Detail Error:', error);
+        if(detailLoadingMessage) detailLoadingMessage.classList.add('hidden');
+        if(detailErrorMessage) {
+            detailErrorMessage.textContent = `Failed to load details: ${error.message}`;
+            detailErrorMessage.classList.remove('hidden');
         }
-        destroyPlayer(); // Clean up on setup error
+        if(detailContentArea) detailContentArea.classList.add('hidden'); // Hide content area on error
+        document.title = 'AniStream - Error';
     }
 }
