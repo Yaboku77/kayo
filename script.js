@@ -1,7 +1,8 @@
 // --- Constants and Global Variables ---
 const ANILIST_API_URL = 'https://graphql.anilist.co';
 // Use the Vercel URL provided by the user for Consumet API
-const CONSUMET_API_URL = 'https://api-pearl-seven-88.vercel.app'; // Changed base URL
+// Note: Unofficial deployments might be unstable. Consider official sources if issues persist.
+const CONSUMET_API_URL = 'https://api-pearl-seven-88.vercel.app';
 
 let searchTimeoutId = null;
 let featuredSwiper = null; // Swiper instance for index page
@@ -110,22 +111,29 @@ function debounce(func, delay) { /* ... (same as before) ... */
 }
 
 // --- API Fetching ---
-// Generic fetch function
-async function fetchApi(url, isJson = true) {
+// Generic fetch function - Added logging
+async function fetchApi(url, isJson = true, apiName = 'Generic') {
+    console.log(`[${apiName}] Fetching: ${url}`); // Log the URL being fetched
     try {
         const response = await fetch(url);
+        console.log(`[${apiName}] Response Status for ${url}: ${response.status}`); // Log status
         if (!response.ok) {
+            // Log the response text for more details on 404 or other errors
+            const errorText = await response.text();
+            console.error(`[${apiName}] Response Error Text: ${errorText}`);
             throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
         }
         return isJson ? await response.json() : await response.text();
     } catch (error) {
-        console.error("API Fetch Error:", error);
+        console.error(`[${apiName}] API Fetch Error for ${url}:`, error);
         throw error; // Re-throw to be handled by caller
     }
 }
 
-// Specific fetch for AniList GraphQL
+// Specific fetch for AniList GraphQL - Added logging
 async function fetchAnilistApi(query, variables) {
+    const apiName = 'AniList';
+    console.log(`[${apiName}] Fetching GraphQL with variables:`, variables);
     try {
         const options = {
             method: 'POST',
@@ -133,18 +141,22 @@ async function fetchAnilistApi(query, variables) {
             body: JSON.stringify({ query: query, variables: variables })
         };
         const response = await fetch(ANILIST_API_URL, options);
+         console.log(`[${apiName}] Response Status: ${response.status}`); // Log status
         if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`[${apiName}] Response Error Text: ${errorText}`);
             throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
         }
         const result = await response.json();
         if (result.errors) {
-            console.error('GraphQL Errors:', result.errors);
+            console.error(`[${apiName}] GraphQL Errors:`, result.errors);
             const message = result.errors[0]?.message || 'Unknown GraphQL error';
             throw new Error(`Error fetching data from AniList API: ${message}`);
         }
+        console.log(`[${apiName}] Fetch successful.`);
         return result.data;
     } catch (error) {
-        console.error("AniList API Fetch Error:", error);
+        console.error(`[${apiName}] API Fetch Error:`, error);
         throw error;
     }
 }
@@ -152,7 +164,7 @@ async function fetchAnilistApi(query, variables) {
 
 // --- HTML Generation Helpers ---
 // ** Links point to anime.html?id=... **
-function createFeaturedSlideHTML(anime) { /* ... (same as before, uses anime.html?id=...) ... */
+function createFeaturedSlideHTML(anime) { /* ... (same as before) ... */
     const title = anime.title.english || anime.title.romaji || anime.title.native || 'Untitled';
     const imageUrl = anime.bannerImage || anime.coverImage.extraLarge || `https://placehold.co/1200x450/${(anime.coverImage.color || '7e22ce').substring(1)}/ffffff?text=Featured`;
     const fallbackImage = `https://placehold.co/1200x450/${(anime.coverImage.color || '7e22ce').substring(1)}/ffffff?text=Featured`;
@@ -171,7 +183,7 @@ function createFeaturedSlideHTML(anime) { /* ... (same as before, uses anime.htm
         </a>
     `;
 }
-function createAnimeCardHTML(anime) { /* ... (same as before, uses anime.html?id=...) ... */
+function createAnimeCardHTML(anime) { /* ... (same as before) ... */
     const title = anime.title.english || anime.title.romaji || anime.title.native || 'Untitled';
     const imageUrl = anime.coverImage.large || `https://placehold.co/185x265/${(anime.coverImage.color || '1a202c').substring(1)}/e2e8f0?text=No+Image`;
     const fallbackImage = `https://placehold.co/185x265/${(anime.coverImage.color || '1a202c').substring(1)}/e2e8f0?text=No+Image`;
@@ -194,7 +206,7 @@ function createAnimeCardHTML(anime) { /* ... (same as before, uses anime.html?id
             </div>
         </a>`;
 }
-function createTopAnimeListItemHTML(anime, rank) { /* ... (same as before, uses anime.html?id=...) ... */
+function createTopAnimeListItemHTML(anime, rank) { /* ... (same as before) ... */
     const title = anime.title.english || anime.title.romaji || anime.title.native || 'Untitled';
     const imageUrl = anime.coverImage.large || `https://placehold.co/50x70/${(anime.coverImage.color || '1a202c').substring(1)}/e2e8f0?text=N/A`;
     const fallbackImage = `https://placehold.co/50x70/${(anime.coverImage.color || '1a202c').substring(1)}/e2e8f0?text=N/A`;
@@ -211,7 +223,7 @@ function createTopAnimeListItemHTML(anime, rank) { /* ... (same as before, uses 
             </a>
         </li>`;
 }
-function createSearchSuggestionHTML(media) { /* ... (same as before, uses anime.html?id=...) ... */
+function createSearchSuggestionHTML(media) { /* ... (same as before) ... */
     const title = media.title.english || media.title.romaji || media.title.native || 'Untitled';
     const imageUrl = media.coverImage.medium || `https://placehold.co/40x60/1f2937/4a5568?text=N/A`;
     const fallbackImage = `https://placehold.co/40x60/1f2937/4a5568?text=N/A`;
@@ -268,8 +280,7 @@ function setupSearch(searchInputId = 'search-input', suggestionsContainerId = 's
          if (!term || term.length < 3) { hideSearchSuggestions(); return; }
          const variables = { search: term, perPage: 6 };
          try {
-             // Use fetchAnilistApi for GraphQL search query
-             const data = await fetchAnilistApi(ANILIST_SEARCH_QUERY, variables);
+             const data = await fetchAnilistApi(ANILIST_SEARCH_QUERY, variables); // Use AniList fetch
              const mediaList = data?.Page?.media || [];
              if (!searchSuggestionsContainer) return;
              if (mediaList.length === 0) {
@@ -417,7 +428,7 @@ async function initIndexPage() {
     };
 
     try {
-        const data = await fetchAnilistApi(ANILIST_BROWSE_QUERY, variables);
+        const data = await fetchAnilistApi(ANILIST_BROWSE_QUERY, variables); // Use AniList fetch
         const hasTrending = data.trending?.media?.length > 0;
         const hasPopular = data.popular?.media?.length > 0;
         const hasTop = data.top?.media?.length > 0;
@@ -430,7 +441,7 @@ async function initIndexPage() {
         if (topAnimeListMobile) topAnimeListMobile.innerHTML = '';
         if (topAnimeListBottomMobile) topAnimeListBottomMobile.innerHTML = '';
 
-        // Populate sections... (using the HTML generation functions)
+        // Populate sections...
         if (hasTrending && swiperWrapperFeatured) {
             data.trending.media.slice(0, 5).forEach(anime => { swiperWrapperFeatured.innerHTML += createFeaturedSlideHTML(anime); });
             setTimeout(() => initializeFeaturedSwiper(), 0);
@@ -457,7 +468,6 @@ async function initIndexPage() {
             errorMessageDiv.textContent = `Failed to load page data: ${error.message}`;
             errorMessageDiv.classList.remove('hidden');
         }
-        // Optionally display errors within sections too
     }
 }
 
@@ -476,18 +486,7 @@ async function initAnimePage() {
     const detailErrorMessage = document.getElementById('detail-error-message');
     const detailLoadingMessage = document.getElementById('detail-loading-message');
     const backButton = document.getElementById('back-button');
-    const detailBanner = document.getElementById('detail-view-banner');
-    const detailCoverImage = document.getElementById('detail-view-cover-image');
-    const detailTitle = document.getElementById('detail-title');
-    const detailGenres = document.getElementById('detail-genres');
-    const detailStats = document.getElementById('detail-stats');
-    const detailDescription = document.getElementById('detail-description');
-    const detailTrailerSection = document.getElementById('detail-trailer-section');
-    const detailTrailer = document.getElementById('detail-trailer');
-    const detailCharacters = document.getElementById('detail-characters');
-    const detailStaff = document.getElementById('detail-staff');
-    const detailRelationsSection = document.getElementById('detail-relations-section');
-    const detailRelations = document.getElementById('detail-relations');
+    // ... (get all other detail elements: banner, cover, title, genres, etc.)
     const episodeListContainer = document.getElementById('episode-list');
     const episodeListLoading = document.getElementById('episode-list-loading');
     const episodeListError = document.getElementById('episode-list-error');
@@ -497,7 +496,7 @@ async function initAnimePage() {
     const urlParams = new URLSearchParams(window.location.search);
     const animeId = urlParams.get('id'); // This is the AniList ID
 
-    if (!animeId) {
+    if (!animeId) { /* ... (handle missing ID error) ... */
         console.error("Anime ID not found in URL query parameters.");
         if (detailLoadingMessage) detailLoadingMessage.classList.add('hidden');
         if (detailErrorMessage) {
@@ -512,42 +511,44 @@ async function initAnimePage() {
         backButton.addEventListener('click', () => { history.back(); });
     }
 
-    // --- Fetch Anime Details (AniList) & Episode Info (Consumet) ---
+    // --- Fetch Data Sequentially with Specific Error Handling ---
+    let media; // To store AniList data
     try {
-        // Fetch basic details from AniList first
+        // 1. Fetch AniList Details
         const anilistData = await fetchAnilistApi(ANILIST_DETAIL_QUERY, { id: parseInt(animeId) });
-        const media = anilistData.Media;
+        media = anilistData.Media; // Assign to outer scope variable
 
         if (!media) {
             throw new Error('Anime details not found on AniList.');
         }
+        console.log("Successfully fetched AniList details.");
+        displayAnimeMetadata(media); // Display metadata now
 
-        // --- Populate Detail View (Metadata) ---
-        displayAnimeMetadata(media); // Use a helper to display non-episode info
-
-        // --- Fetch Episode Info from Consumet ---
+        // 2. Fetch Consumet Episode Info (only after AniList success)
         if (episodeListLoading) episodeListLoading.classList.remove('hidden');
         if (episodeListContainer) episodeListContainer.classList.add('hidden');
         if (episodeListError) episodeListError.classList.add('hidden');
 
-        const consumetInfoUrl = `${CONSUMET_API_URL}/anime/zoro/info?id=${animeId}`; // Use AniList ID with Consumet
-        const episodeData = await fetchApi(consumetInfoUrl); // fetchApi handles errors
+        const consumetInfoUrl = `${CONSUMET_API_URL}/anime/zoro/info?id=${animeId}`;
+        // Use generic fetchApi with specific name for logging
+        const episodeData = await fetchApi(consumetInfoUrl, true, 'Consumet Info');
 
         if (!episodeData || !episodeData.episodes || episodeData.episodes.length === 0) {
-            throw new Error('No episodes found for this anime.');
+            throw new Error('No episodes found from provider.');
         }
+        console.log(`Successfully fetched ${episodeData.episodes.length} episodes.`);
 
         // --- Populate Episode List ---
         if (episodeListContainer) {
-            episodeListContainer.innerHTML = ''; // Clear previous buttons
+            episodeListContainer.innerHTML = ''; // Clear previous
             episodeData.episodes.forEach(ep => {
                 const button = document.createElement('button');
-                button.textContent = `Episode ${ep.number}` + (ep.title ? ` - ${ep.title}` : '');
+                // Use ep.number and ep.title (if available) for button text
+                button.textContent = `Episode ${ep.number}${ep.title ? ` - ${ep.title}` : ''}`;
                 button.classList.add('episode-button');
-                button.dataset.episodeId = ep.id; // Store episode ID
+                button.dataset.episodeId = ep.id;
                 button.addEventListener('click', () => {
-                    loadEpisode(ep.id); // Load stream on click
-                     // Highlight clicked button
+                    loadEpisode(ep.id);
                     document.querySelectorAll('.episode-button.playing').forEach(btn => btn.classList.remove('playing'));
                     button.classList.add('playing');
                 });
@@ -555,27 +556,40 @@ async function initAnimePage() {
             });
             episodeListContainer.classList.remove('hidden');
         }
-
         if (episodeListLoading) episodeListLoading.classList.add('hidden');
 
-        // --- Hide overall loading message and show content ---
+        // --- Show Content ---
         if (detailLoadingMessage) detailLoadingMessage.classList.add('hidden');
         if (detailContentArea) detailContentArea.classList.remove('hidden');
 
-
     } catch (error) {
-        console.error('Error fetching details or episodes:', error);
+        // This block catches errors from EITHER fetchAnilistApi OR fetchApi(consumetInfoUrl)
+        console.error('Error initializing anime page:', error);
         if (detailLoadingMessage) detailLoadingMessage.classList.add('hidden');
-        if (episodeListLoading) episodeListLoading.classList.add('hidden');
+        if (episodeListLoading) episodeListLoading.classList.add('hidden'); // Hide episode loading too
+
+        // Display a general error, or check which data failed
+        let specificErrorMsg = `Failed to load anime data: ${error.message}`;
+        if (!media && error.message.includes('AniList')) {
+            specificErrorMsg = `Failed to load core anime details: ${error.message}`;
+        } else if (media && error.message.includes('provider')) { // Check if episode fetch failed
+             specificErrorMsg = `Failed to load episodes: ${error.message}`;
+             if (episodeListError) { // Show error in episode list section
+                 episodeListError.textContent = specificErrorMsg;
+                 episodeListError.classList.remove('hidden');
+             }
+        }
+
+        // Show general error message area
         if (detailErrorMessage) {
-            detailErrorMessage.textContent = `Failed to load anime data: ${error.message}`;
+            detailErrorMessage.textContent = specificErrorMsg;
             detailErrorMessage.classList.remove('hidden');
         }
-        if (episodeListError) {
-             episodeListError.textContent = `Failed to load episodes: ${error.message}`;
-             episodeListError.classList.remove('hidden');
+
+        // Hide main content area if essential data failed
+        if (!media && detailContentArea) {
+             detailContentArea.classList.add('hidden');
         }
-        if (detailContentArea) detailContentArea.classList.add('hidden'); // Keep content hidden on error
     }
 }
 
@@ -583,7 +597,7 @@ async function initAnimePage() {
  * Helper to display non-episode metadata from AniList data
  */
 function displayAnimeMetadata(media) {
-    const detailContentArea = document.getElementById('detail-content-area');
+    // Get elements (could be passed as args or retrieved here)
     const detailBanner = document.getElementById('detail-view-banner');
     const detailCoverImage = document.getElementById('detail-view-cover-image');
     const detailTitle = document.getElementById('detail-title');
@@ -601,26 +615,25 @@ function displayAnimeMetadata(media) {
     const pageTitle = media.title.english || media.title.romaji || 'Anime Details';
     document.title = `AniStream - ${pageTitle}`;
 
-    // Populate Banner, Cover Image, Title, Genres, Stats, Desc, Trailer, Chars, Staff, Relations...
-    // (This code is the same as the display logic within the previous initAnimePage)
-    if(detailBanner) { /* ... */
+    // Populate elements... (same logic as before)
+     if(detailBanner) {
         detailBanner.style.backgroundImage = `url('${media.bannerImage || media.coverImage.extraLarge || ''}')`;
         detailBanner.classList.remove('animate-pulse', 'bg-gray-700');
     }
-    if(detailCoverImage) { /* ... */
+    if(detailCoverImage) {
         detailCoverImage.src = media.coverImage.large || 'https://placehold.co/160x240/1f2937/4a5568?text=N/A';
         detailCoverImage.alt = `${media.title.english || media.title.romaji} Cover`;
         detailCoverImage.classList.remove('animate-pulse', 'bg-gray-700');
     }
-    if(detailTitle) { /* ... */
+    if(detailTitle) {
         detailTitle.textContent = media.title.english || media.title.romaji || media.title.native || 'N/A';
         detailTitle.className = 'text-2xl sm:text-3xl font-bold text-white mb-1 line-clamp-2';
     }
-    if(detailGenres) { /* ... */
+    if(detailGenres) {
         detailGenres.textContent = media.genres?.join(' • ') || 'N/A';
         detailGenres.className = 'text-sm text-purple-300 mb-2';
     }
-    if(detailStats) { /* ... */
+    if(detailStats) {
         detailStats.innerHTML = `
             <span class="flex items-center"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 mr-1 text-yellow-400"><path fill-rule="evenodd" d="M10.868 2.884c-.321-.772-1.415-.772-1.736 0l-1.83 4.401-4.753.381c-.833.067-1.171 1.107-.536 1.651l3.62 3.102-1.106 4.637c-.194.813.691 1.456 1.405 1.02L10 15.591l4.069 2.485c.713.436 1.598-.207 1.404-1.02l-1.106-4.637 3.62-3.102c.635-.544.297-1.584-.536-1.65l-4.752-.382-1.831-4.401Z" clip-rule="evenodd" /></svg> ${media.averageScore || '--'}%</span>
             <span>Status: ${media.status?.replace(/_/g, ' ') || '--'}</span>
@@ -630,11 +643,11 @@ function displayAnimeMetadata(media) {
         `;
         detailStats.className = 'flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-400 mt-2';
     }
-    if(detailDescription) { /* ... */
+    if(detailDescription) {
         detailDescription.textContent = sanitizeDescription(media.description) || 'No description available.';
         detailDescription.className = 'text-sm text-gray-300 leading-relaxed';
     }
-    if (media.trailer?.site === 'youtube' && media.trailer?.id) { /* ... */
+    if (media.trailer?.site === 'youtube' && media.trailer?.id) {
         if(detailTrailer) {
             const youtubeEmbedUrl = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(media.trailer.id)}`;
             detailTrailer.innerHTML = `<iframe class="w-full h-full aspect-video" src="${youtubeEmbedUrl}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>`;
@@ -645,8 +658,7 @@ function displayAnimeMetadata(media) {
         if(detailTrailer) detailTrailer.innerHTML = '';
         if(detailTrailerSection) detailTrailerSection.classList.add('hidden');
     }
-    if (media.characters?.edges?.length > 0 && detailCharacters) { /* ... */
-        detailCharacters.innerHTML = media.characters.edges.map(edge => `...`).join(''); // Use previous map logic
+    if (media.characters?.edges?.length > 0 && detailCharacters) {
          detailCharacters.innerHTML = media.characters.edges.map(edge => `
             <div class="detail-list-item">
                 <img src="${edge.node.image?.large || 'https://placehold.co/80x110/1f2937/4a5568?text=N/A'}" alt="${edge.node.name?.full || '?'}" loading="lazy" class="shadow-md"/>
@@ -656,8 +668,7 @@ function displayAnimeMetadata(media) {
     } else if(detailCharacters) {
         detailCharacters.innerHTML = '<p class="text-sm text-gray-400 italic col-span-full">No character data available.</p>';
     }
-    if (media.staff?.edges?.length > 0 && detailStaff) { /* ... */
-        detailStaff.innerHTML = media.staff.edges.map(edge => `...`).join(''); // Use previous map logic
+    if (media.staff?.edges?.length > 0 && detailStaff) {
         detailStaff.innerHTML = media.staff.edges.map(edge => `
             <div class="detail-list-item">
                 <img src="${edge.node.image?.large || 'https://placehold.co/80x110/1f2937/4a5568?text=N/A'}" alt="${edge.node.name?.full || '?'}" loading="lazy" class="shadow-md"/>
@@ -667,10 +678,10 @@ function displayAnimeMetadata(media) {
     } else if(detailStaff) {
         detailStaff.innerHTML = '<p class="text-sm text-gray-400 italic col-span-full">No staff data available.</p>';
     }
-    if (media.relations?.edges?.length > 0 && detailRelations) { /* ... */
+    if (media.relations?.edges?.length > 0 && detailRelations) {
          detailRelations.innerHTML = media.relations.edges
              .filter(edge => edge.node.type === 'ANIME')
-             .map(edge => { /* ... use previous map logic with anime.html?id=... links ... */
+             .map(edge => {
                  const relTitle = edge.node.title.english || edge.node.title.romaji || edge.node.title.native || 'Related Title';
                  const relImage = edge.node.coverImage?.large || `https://placehold.co/100x150/1f2937/4a5568?text=N/A`;
                  const relFallbackImage = `https://placehold.co/100x150/1f2937/4a5568?text=N/A`;
@@ -702,17 +713,18 @@ async function loadEpisode(episodeId) {
     console.log(`Loading episode: ${episodeId}`);
     const playerErrorMessage = document.getElementById('player-error-message');
     if (playerErrorMessage) playerErrorMessage.classList.add('hidden'); // Hide previous errors
+    const playerContainer = document.getElementById('player');
+    if(playerContainer) playerContainer.innerHTML = 'Loading stream...'; // Indicate loading
 
     try {
         const watchUrl = `${CONSUMET_API_URL}/anime/zoro/watch?episodeId=${encodeURIComponent(episodeId)}`;
-        const streamData = await fetchApi(watchUrl);
+        // Use generic fetchApi with specific name for logging
+        const streamData = await fetchApi(watchUrl, true, 'Consumet Watch');
 
         if (!streamData || !streamData.sources || streamData.sources.length === 0) {
             throw new Error('No streaming sources found for this episode.');
         }
 
-        // Find the HLS source (usually .m3u8)
-        // Look for 'default' quality or the first HLS source
         let hlsSource = streamData.sources.find(s => s.quality === 'default' && s.url.includes('.m3u8'));
         if (!hlsSource) {
             hlsSource = streamData.sources.find(s => s.url.includes('.m3u8'));
@@ -731,7 +743,7 @@ async function loadEpisode(episodeId) {
             playerErrorMessage.textContent = `Error loading stream: ${error.message}`;
             playerErrorMessage.classList.remove('hidden');
         }
-        // Optionally destroy existing player instances if error occurs
+        if(playerContainer) playerContainer.innerHTML = '<p class="text-red-500 p-4">Failed to load stream.</p>';
         destroyPlayer();
     }
 }
@@ -742,7 +754,7 @@ async function loadEpisode(episodeId) {
 function destroyPlayer() {
      if (jwPlayerInstance) {
         try {
-            jwPlayerInstance.remove(); // Use JW Player's remove method
+            jwPlayerInstance.remove();
         } catch (e) { console.warn("Error removing JW Player instance:", e); }
         jwPlayerInstance = null;
     }
@@ -756,7 +768,8 @@ function destroyPlayer() {
     }
     // Clear player div content as fallback
     const playerDiv = document.getElementById('player');
-    if (playerDiv) playerDiv.innerHTML = 'Player stopped.';
+    // Don't clear the div if JW Player remove failed, just in case
+    // if (playerDiv) playerDiv.innerHTML = '';
 }
 
 
@@ -765,70 +778,69 @@ function destroyPlayer() {
  * @param {string} m3u8Url - The URL of the HLS stream.
  */
 function setupPlayer(m3u8Url) {
-    // Destroy previous instances if they exist
-    destroyPlayer();
+    destroyPlayer(); // Ensure previous instances are gone
 
-    const playerDivId = 'player'; // ID of the div for JW Player
+    const playerDivId = 'player';
+    const playerDiv = document.getElementById(playerDivId);
+    const playerErrorMessage = document.getElementById('player-error-message');
+    if (playerErrorMessage) playerErrorMessage.classList.add('hidden'); // Hide previous errors
+
 
     // --- Check if libraries are loaded ---
     if (typeof jwplayer === 'undefined') {
-        console.error('JW Player library is not loaded. Check script tag and license key.');
-         document.getElementById(playerDivId).innerHTML = '<p class="text-red-500 p-4">Error: JW Player library not found.</p>';
+        console.error('JW Player library is not loaded.');
+         if(playerDiv) playerDiv.innerHTML = '<p class="text-red-500 p-4">Error: JW Player library not found. Check script tag and license key.</p>';
         return;
     }
-     if (typeof Hls === 'undefined') {
-        console.error('hls.js library is not loaded.');
-        document.getElementById(playerDivId).innerHTML = '<p class="text-red-500 p-4">Error: hls.js library not found.</p>';
+     if (typeof Hls === 'undefined' || !Hls.isSupported()) { // Check HLS support
+        console.error('hls.js library is not loaded or not supported by this browser.');
+        if(playerDiv) playerDiv.innerHTML = '<p class="text-red-500 p-4">Error: HLS playback not supported in this browser.</p>';
         return;
     }
     if (typeof P2PEngine === 'undefined') {
-        console.error('hlsjs-p2p-engine library is not loaded.');
-         // Continue without P2P if engine is missing? Or show error? Let's show error.
-         document.getElementById(playerDivId).innerHTML = '<p class="text-red-500 p-4">Error: P2P engine library not found.</p>';
-        return;
+        console.warn('hlsjs-p2p-engine library not loaded. Playback will proceed without P2P.');
+        // We can choose to proceed without P2P
+        // If P2P is essential, uncomment the error below and return
+        // if(playerDiv) playerDiv.innerHTML = '<p class="text-red-500 p-4">Error: P2P engine library not found.</p>';
+        // return;
     }
 
     try {
-        // --- P2P Engine Config ---
-        p2pEngine = new P2PEngine.Engine(); // Use default config or customize
-
-        // --- HLS.js Config ---
-        const hlsConfig = {
-            // Enable P2P loader
-            loader: p2pEngine.createLoaderClass(),
-            // Other hls.js config options if needed
-            // liveSyncDurationCount: 7, // Example option
-            // enableWorker: true,      // Example option
-        };
+        // --- P2P Engine Config (Only if loaded) ---
+        let hlsConfig = {};
+        if (typeof P2PEngine !== 'undefined') {
+            console.log("Setting up P2P Engine");
+            p2pEngine = new P2PEngine.Engine(); // Use default config
+            hlsConfig.loader = p2pEngine.createLoaderClass();
+        } else {
+            console.log("P2P Engine not found, using default HLS loader.");
+        }
 
         hlsInstance = new Hls(hlsConfig);
 
         // --- JW Player Setup ---
+        // Ensure the player div is empty before setup
+        if(playerDiv) playerDiv.innerHTML = '';
+
         jwPlayerInstance = jwplayer(playerDivId).setup({
-            // file: m3u8Url, // JW Player might try to load directly, we'll use hls.js
-            // width: "100%", // Handled by CSS aspect-ratio
-            // aspectratio: "16:9", // Handled by CSS aspect-ratio
-            autostart: true, // Start playing automatically
-            // Add other JW Player config options here if needed
-            // controls: true,
-            // primary: 'html5', // Usually default
+            // We will load the source via hls.js, not directly here
+            autostart: true,
+            // Mute recommended for autoplay success
+            // mute: true,
         });
 
         // --- Integrate hls.js with JW Player ---
-        // Listen for the JW Player 'ready' event to get the video element
         jwPlayerInstance.on('ready', function() {
-            const videoElement = document.querySelector(`#${playerDivId} video`); // Get the video element inside JW Player
+            const videoElement = document.querySelector(`#${playerDivId}_video`); // JW Player 8+ uses _video suffix
             if (videoElement) {
                 console.log("Attaching hls.js to video element");
                 hlsInstance.attachMedia(videoElement);
             } else {
-                console.error("Could not find video element within JW Player.");
-                 document.getElementById(playerDivId).innerHTML = '<p class="text-red-500 p-4">Error: Could not initialize player video element.</p>';
+                 console.error(`Could not find video element with selector #${playerDivId}_video`);
+                 if(playerDiv) playerDiv.innerHTML = '<p class="text-red-500 p-4">Error: Could not initialize player video element.</p>';
             }
         });
 
-         // Load the source into HLS.js AFTER JW Player setup might have started
-         // Listen for HLS manifest parsed event before trying to attach? No, attach first.
          hlsInstance.loadSource(m3u8Url);
 
          // Optional: Listen for HLS errors
@@ -838,23 +850,9 @@ function setupPlayer(m3u8Url) {
              if (playerErrorMessage && data.fatal) {
                   playerErrorMessage.textContent = `Playback Error: ${data.type} - ${data.details}`;
                   playerErrorMessage.classList.remove('hidden');
+                  // Consider destroying the player on fatal errors
+                  // destroyPlayer();
              }
-             // Handle specific errors if needed
-             // switch (data.type) {
-             //     case Hls.ErrorTypes.NETWORK_ERROR:
-             //         // try to recover network error
-             //         console.log("fatal network error encountered, try to recover");
-             //         hlsInstance.startLoad();
-             //         break;
-             //     case Hls.ErrorTypes.MEDIA_ERROR:
-             //         console.log("fatal media error encountered, try to recover");
-             //         hlsInstance.recoverMediaError();
-             //         break;
-             //     default:
-             //         // cannot recover
-             //         destroyPlayer(); // Destroy on fatal error?
-             //         break;
-             // }
          });
 
          console.log("Player setup initiated.");
