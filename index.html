@@ -37,11 +37,69 @@
         .card-skeleton { background-color: #2d3748; border-radius: 0.5rem; height: 16rem; }
         .slider-skeleton { background-color: #4a5568; border-radius: 0.5rem; }
         .slider-skeleton .slide-text-content { background: linear-gradient(to right, rgba(30, 30, 30, 0.95) 10%, rgba(30, 30, 30, 0.8) 40%, rgba(30, 30, 30, 0) 100%); }
-         /* Detail view specific styles removed from here */
+
+        /* --- Dark Mode Styles --- */
+        .dark {
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+        .dark #main-header {
+            background-color: #0f172a;
+        }
+        .dark #search-input {
+            background-color: #374151;
+            color: #f8fafc;
+            border-color: #4a5568;
+        }
+        .dark #search-input:focus {
+            ring-color: #8b5cf6;
+            border-color: #8b5cf6;
+        }
+        .dark #search-suggestions {
+            background-color: #1f2937;
+            border-color: #4a5568;
+        }
+        .dark .nav-link:hover {
+            background-color: #374151;
+            color: #fff;
+        }
+        .dark #mobile-sidebar {
+            background-color: #1f2937;
+        }
+        .dark .mobile-nav-link:hover {
+            background-color: #374151;
+            color: #fff;
+        }
+        .dark .top-list-item-skeleton {
+            background-color: #4a5568;
+        }
+        .dark .card-skeleton {
+            background-color: #374151;
+        }
+        .dark .slider-skeleton {
+            background-color: #4a5568;
+        }
+        .dark .slider-skeleton .slide-text-content {
+            background: linear-gradient(to right, rgba(30, 30, 30, 0.95) 10%, rgba(30, 30, 30, 0.8) 40%, rgba(30, 30, 30, 0) 100%);
+        }
+        .dark .swiper-pagination-bullet {
+            background-color: #718096 !important;
+        }
+        .dark .swiper-pagination-bullet-active {
+            background-color: #d6bcfa !important;
+        }
+        .dark #detail-view-banner::after {
+            background: linear-gradient(to top, #0f172a, transparent);
+        }
+        .dark #detail-view-cover-image {
+            border-color: #4a5568;
+        }
+        .dark .detail-list-item img {
+            border-color: #4a5568;
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-gray-200">
-
     <header id="main-header" class="bg-gray-900 bg-opacity-80 backdrop-blur-sm p-4 shadow-md sticky top-0 z-30">
         <div class="container mx-auto flex justify-between items-center gap-4">
             <a href="index.html" class="text-2xl font-bold text-purple-400 cursor-pointer flex-shrink-0">AniStream</a>
@@ -57,6 +115,11 @@
             <nav class="hidden lg:flex items-center space-x-2 flex-shrink-0">
                 <a href="index.html" class="nav-link text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">Home</a>
                 <a href="#desktop-sidebar" class="nav-link text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">Top 10</a>
+                 <button id="dark-mode-toggle" class="text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors" aria-label="Toggle Dark Mode">
+                    <svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5">
+                        <path d="M12 3a6 6 0 0 0 9 9 9 9 0 11-9-9Z"></path>
+                    </svg>
+                </button>
             </nav>
 
             <button id="mobile-menu-button" class="lg:hidden text-gray-300 hover:text-white focus:outline-none focus:text-white flex-shrink-0" aria-label="Open menu">
@@ -77,6 +140,12 @@
             <nav class="mb-6 border-b border-gray-700 pb-4">
                 <a href="index.html" class="mobile-nav-link block py-2.5 px-4 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md transition-colors">Home</a>
                 <a href="#top-anime-bottom-mobile" class="mobile-nav-link block py-2.5 px-4 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md transition-colors">Top 10 Animes</a>
+                 <button id="mobile-dark-mode-toggle" class="mobile-nav-link flex items-center justify-between py-2.5 px-4 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md transition-colors" aria-label="Toggle Dark Mode">
+                    <span>Dark Mode</span>
+                    <svg id="mobile-theme-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5">
+                        <path d="M12 3a6 6 0 0 0 9 9 9 9 0 11-9-9Z"></path>
+                    </svg>
+                </button>
             </nav>
             <div>
                 <h2 id="mobile-sidebar-top-heading" class="text-lg font-semibold mb-3 border-l-4 border-purple-500 pl-2 text-gray-200">Top 10 Anime</h2>
@@ -124,21 +193,21 @@
                 </section>
 
                 <section id="top-anime-bottom-mobile" class="mt-12 mb-8 block lg:hidden">
-                     <h2 class="text-2xl font-semibold mb-4 border-l-4 border-purple-500 pl-3">Top 10 Animes</h2>
-                     <ul id="top-anime-list-bottom-mobile" class="space-y-2">
-                         <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li>
-                     </ul>
-                 </section>
+                    <h2 class="text-2xl font-semibold mb-4 border-l-4 border-purple-500 pl-3">Top 10 Animes</h2>
+                    <ul id="top-anime-list-bottom-mobile" class="space-y-2">
+                        <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li> <li class="animate-pulse top-list-item-skeleton"></li>
+                    </ul>
+                </section>
             </div>
 
             <aside id="desktop-sidebar" class="hidden lg:block lg:col-span-1 bg-gray-800 p-4 rounded-lg shadow-lg h-fit sticky top-[calc(theme(spacing.16)_-_theme(spacing.8))]">
-                 <h2 class="text-xl font-semibold mb-4 border-l-4 border-purple-500 pl-3">Top 10 Anime</h2>
-                 <ul id="top-anime-list-desktop" class="space-y-3">
-                     <li class="animate-pulse top-list-item-skeleton !h-10"></li> <li class="animate-pulse top-list-item-skeleton !h-10"></li> <li class="animate-pulse top-list-item-skeleton !h-10"></li> <li class="animate-pulse top-list-item-skeleton !h-10"></li> <li class="animate-pulse top-list-item-skeleton !h-10"></li> <li class="animate-pulse top-list-item-skeleton !h-10"></li> <li class="animate-pulse top-list-item-skeleton !h-10"></li> <li class="animate-pulse top-list-item-skeleton !h-10"></li> <li class="animate-pulse top-list-item-skeleton !h-10"></li> <li class="animate-pulse top-list-item-skeleton !h-10"></li>
-                 </ul>
+                <h2 class="text-xl font-semibold mb-4 border-l-4 border-purple-500 pl-3">Top 10 Anime</h2>
+                <ul id="top-anime-list-desktop" class="space-y-3">
+                    <li class="animate-pulse top-list-item-skeleton !h-10"></li> <li class="animate-pulse top-list-item-skeleton !h-10"></li> <li class="animate-pulse top-list-item-skeleton !h-10"></li> <li class="animate-pulse top-list-item-skeleton !h-10"></li> <li class="animate-pulse top-list-item-skeleton !h-10"></li> <li class="animate-pulse top-list-item-skeleton !h-10"></li> <li class="animate-pulse top-list-item-skeleton !h-10"></li> <li class="animate-pulse top-list-item-skeleton !h-10"></li> <li class="animate-pulse top-list-item-skeleton !h-10"></li> <li class="animate-pulse top-list-item-skeleton !h-10"></li>
+                </ul>
             </aside>
         </div>
-        </main>
+    </main>
 
     <footer class="bg-gray-800 mt-12 p-4 text-center text-gray-400 text-sm">
         <p>© <span id="footer-year"></span> AniStream Mockup. Data sourced from AniList.</p>
