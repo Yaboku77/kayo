@@ -125,6 +125,7 @@ async function fetchApi(query, variables) {
         const result = await response.json();
         if (result.errors) {
             console.error('GraphQL Errors:', result.errors);
+            // Extract a user-friendly message if possible
             const message = result.errors[0]?.message || 'Unknown GraphQL error';
             throw new Error(`Error fetching data from AniList API: ${message}`);
         }
@@ -388,4 +389,298 @@ function setupMobileMenu(menuButtonId = 'mobile-menu-button', sidebarContainerId
             // Use setTimeout to ensure navigation isn't interrupted on slower devices
             setTimeout(closeMobileMenu, 50);
         });
-    })
+    });
+}
+
+// --- Footer Year (Common) ---
+function setFooterYear(footerYearId = 'footer-year') {
+    const footerYearSpan = document.getElementById(footerYearId);
+    if(footerYearSpan) footerYearSpan.textContent = new Date().getFullYear();
+}
+
+
+// --- Page Specific Initialization ---
+
+/**
+ * Initializes the Index (Browse) Page
+ */
+async function initIndexPage() {
+    console.log("Initializing Index Page");
+    setFooterYear();
+    setupSearch(); // Use default IDs
+    setupMobileMenu(); // Use default IDs
+
+    // Get DOM elements specific to index page
+    const swiperWrapperFeatured = document.getElementById('swiper-wrapper-featured');
+    const trendingGrid = document.getElementById('trending-grid');
+    const popularGrid = document.getElementById('popular-grid');
+    const topAnimeListDesktop = document.getElementById('top-anime-list-desktop');
+    const topAnimeListMobile = document.getElementById('top-anime-list-mobile');
+    const topAnimeListBottomMobile = document.getElementById('top-anime-list-bottom-mobile');
+    const errorMessageDiv = document.getElementById('error-message');
+
+    // Fetch and display browse data
+    if (errorMessageDiv) errorMessageDiv.classList.add('hidden');
+    const { season, year } = getCurrentSeason();
+    const variables = {
+        page: 1,
+        perPageTrending: 7, // For slider + grid
+        perPagePopularGrid: 10,
+        perPageTop: 10,
+        season: season,
+        seasonYear: year
+    };
+
+    try {
+        const data = await fetchApi(ANILIST_BROWSE_QUERY, variables);
+        const hasTrending = data.trending?.media?.length > 0;
+        const hasPopular = data.popular?.media?.length > 0;
+        const hasTop = data.top?.media?.length > 0;
+
+        // Clear skeletons / existing content
+        if (swiperWrapperFeatured) swiperWrapperFeatured.innerHTML = '';
+        if (trendingGrid) trendingGrid.innerHTML = '';
+        if (popularGrid) popularGrid.innerHTML = '';
+        if (topAnimeListDesktop) topAnimeListDesktop.innerHTML = '';
+        if (topAnimeListMobile) topAnimeListMobile.innerHTML = '';
+        if (topAnimeListBottomMobile) topAnimeListBottomMobile.innerHTML = '';
+
+
+        // Populate Featured Slider
+        if (hasTrending && swiperWrapperFeatured) {
+            // Use first few trending items for slider
+            data.trending.media.slice(0, 5).forEach(anime => {
+                 swiperWrapperFeatured.innerHTML += createFeaturedSlideHTML(anime);
+            });
+            setTimeout(() => initializeFeaturedSwiper(), 0); // Initialize after DOM update
+        } else if (swiperWrapperFeatured) {
+            swiperWrapperFeatured.innerHTML = '<div class="flex items-center justify-center h-full"><p class="text-gray-400 p-4">Could not load featured anime.</p></div>';
+        }
+
+        // Populate Trending Grid (use all fetched trending items)
+        if (hasTrending && trendingGrid) {
+            data.trending.media.forEach(anime => {
+                trendingGrid.innerHTML += createAnimeCardHTML(anime);
+            });
+        } else if (trendingGrid) {
+            trendingGrid.innerHTML = '<p class="text-gray-400 col-span-full">Could not load trending anime.</p>';
+        }
+
+        // Populate Popular Grid
+        if (hasPopular && popularGrid) {
+            data.popular.media.forEach(anime => {
+                popularGrid.innerHTML += createAnimeCardHTML(anime);
+            });
+        } else if (popularGrid) {
+            popularGrid.innerHTML = '<p class="text-gray-400 col-span-full">Could not load popular anime for this season.</p>';
+        }
+
+        // Populate Top Anime Lists
+        if (hasTop) {
+            const topAnimeHTML = data.top.media.map((anime, index) => createTopAnimeListItemHTML(anime, index)).join('');
+            if (topAnimeListDesktop) topAnimeListDesktop.innerHTML = topAnimeHTML;
+            if (topAnimeListMobile) topAnimeListMobile.innerHTML = topAnimeHTML;
+            if (topAnimeListBottomMobile) topAnimeListBottomMobile.innerHTML = topAnimeHTML;
+        } else {
+            const errorMsg = '<li><p class="text-gray-400 p-2">Could not load top anime.</p></li>';
+            if (topAnimeListDesktop) topAnimeListDesktop.innerHTML = errorMsg;
+            if (topAnimeListMobile) topAnimeListMobile.innerHTML = errorMsg;
+            if (topAnimeListBottomMobile) topAnimeListBottomMobile.innerHTML = errorMsg;
+        }
+
+    } catch (error) {
+        console.error('Fetch Browse Error:', error);
+        if(errorMessageDiv) {
+            errorMessageDiv.textContent = `Failed to load page data: ${error.message}`;
+            errorMessageDiv.classList.remove('hidden');
+        }
+        // Display errors in sections
+        if (swiperWrapperFeatured) swiperWrapperFeatured.innerHTML = '<div class="flex items-center justify-center h-full"><p class="text-red-400 p-4">Failed to load featured.</p></div>';
+        if (trendingGrid) trendingGrid.innerHTML = '<p class="text-red-400 col-span-full">Failed to load trending.</p>';
+        if (popularGrid) popularGrid.innerHTML = '<p class="text-red-400 col-span-full">Failed to load popular.</p>';
+        const errorMsgTop = '<li><p class="text-red-400 p-2">Failed to load top anime.</p></li>';
+        if (topAnimeListDesktop) topAnimeListDesktop.innerHTML = errorMsgTop;
+        if (topAnimeListMobile) topAnimeListMobile.innerHTML = errorMsgTop;
+        if (topAnimeListBottomMobile) topAnimeListBottomMobile.innerHTML = errorMsgTop;
+    }
+}
+
+
+/**
+ * Initializes the Anime Detail Page
+ */
+async function initAnimePage() {
+    console.log("Initializing Anime Detail Page");
+    setFooterYear();
+    setupSearch(); // Setup search on this page too
+    setupMobileMenu(); // Setup mobile menu
+
+    // Get DOM elements specific to detail page
+    const detailView = document.getElementById('detail-view'); // Main container
+    const detailContentArea = document.getElementById('detail-content-area');
+    const detailErrorMessage = document.getElementById('detail-error-message');
+    const detailLoadingMessage = document.getElementById('detail-loading-message');
+    const backButton = document.getElementById('back-button');
+    const detailBanner = document.getElementById('detail-view-banner');
+    const detailCoverImage = document.getElementById('detail-view-cover-image');
+    const detailTitle = document.getElementById('detail-title');
+    const detailGenres = document.getElementById('detail-genres');
+    const detailStats = document.getElementById('detail-stats');
+    const detailDescription = document.getElementById('detail-description');
+    const detailTrailerSection = document.getElementById('detail-trailer-section');
+    const detailTrailer = document.getElementById('detail-trailer');
+    const detailCharacters = document.getElementById('detail-characters');
+    const detailStaff = document.getElementById('detail-staff');
+    const detailRelationsSection = document.getElementById('detail-relations-section');
+    const detailRelations = document.getElementById('detail-relations');
+
+    // --- Get Anime ID from URL ---
+    const urlParams = new URLSearchParams(window.location.search);
+    const animeId = urlParams.get('id');
+
+    if (!animeId) {
+        console.error("Anime ID not found in URL query parameters.");
+        if (detailLoadingMessage) detailLoadingMessage.classList.add('hidden');
+        if (detailErrorMessage) {
+            detailErrorMessage.textContent = "Error: No Anime ID specified in the URL.";
+            detailErrorMessage.classList.remove('hidden');
+        }
+        return; // Stop execution
+    }
+
+    // --- Setup Back Button ---
+    if (backButton) {
+        backButton.addEventListener('click', () => {
+            history.back(); // Simple back navigation
+        });
+    }
+
+    // --- Fetch and Display Anime Details ---
+    const variables = { id: parseInt(animeId) };
+    try {
+        const data = await fetchApi(ANILIST_DETAIL_QUERY, variables);
+        const media = data.Media; // Extract the media object
+
+        if (!media) {
+            throw new Error('Anime not found for the given ID.');
+        }
+
+        // --- Populate Detail View ---
+        // Hide loading, show content area
+        if(detailLoadingMessage) detailLoadingMessage.classList.add('hidden');
+        if(detailErrorMessage) detailErrorMessage.classList.add('hidden');
+        if(detailContentArea) detailContentArea.classList.remove('hidden');
+
+        // Update Page Title
+        const pageTitle = media.title.english || media.title.romaji || 'Anime Details';
+        document.title = `AniStream - ${pageTitle}`;
+
+        // Banner
+        if(detailBanner) {
+            detailBanner.style.backgroundImage = `url('${media.bannerImage || media.coverImage.extraLarge || ''}')`;
+            detailBanner.classList.remove('animate-pulse', 'bg-gray-700');
+        }
+        // Cover Image
+        if(detailCoverImage) {
+            detailCoverImage.src = media.coverImage.large || 'https://placehold.co/160x240/1f2937/4a5568?text=N/A';
+            detailCoverImage.alt = `${media.title.english || media.title.romaji} Cover`;
+            detailCoverImage.classList.remove('animate-pulse', 'bg-gray-700');
+        }
+        // Title
+        if(detailTitle) {
+            detailTitle.textContent = media.title.english || media.title.romaji || media.title.native || 'N/A';
+            detailTitle.className = 'text-2xl sm:text-3xl font-bold text-white mb-1 line-clamp-2';
+        }
+        // Genres
+        if(detailGenres) {
+            detailGenres.textContent = media.genres?.join(' • ') || 'N/A';
+            detailGenres.className = 'text-sm text-purple-300 mb-2';
+        }
+        // Stats
+        if(detailStats) {
+            detailStats.innerHTML = `
+                <span class="flex items-center"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 mr-1 text-yellow-400"><path fill-rule="evenodd" d="M10.868 2.884c-.321-.772-1.415-.772-1.736 0l-1.83 4.401-4.753.381c-.833.067-1.171 1.107-.536 1.651l3.62 3.102-1.106 4.637c-.194.813.691 1.456 1.405 1.02L10 15.591l4.069 2.485c.713.436 1.598-.207 1.404-1.02l-1.106-4.637 3.62-3.102c.635-.544.297-1.584-.536-1.65l-4.752-.382-1.831-4.401Z" clip-rule="evenodd" /></svg> ${media.averageScore || '--'}%</span>
+                <span>Status: ${media.status?.replace(/_/g, ' ') || '--'}</span>
+                <span>Episodes: ${media.episodes || '--'}</span>
+                <span>Format: ${media.format?.replace(/_/g, ' ') || '--'}</span>
+                <span>Season: ${media.season || '--'} ${media.seasonYear || '--'}</span>
+            `;
+            detailStats.className = 'flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-400 mt-2';
+        }
+        // Description
+        if(detailDescription) {
+            detailDescription.textContent = sanitizeDescription(media.description) || 'No description available.';
+            detailDescription.className = 'text-sm text-gray-300 leading-relaxed';
+        }
+        // Trailer
+        if (media.trailer?.site === 'youtube' && media.trailer?.id) {
+            if(detailTrailer) {
+                const youtubeEmbedUrl = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(media.trailer.id)}`;
+                detailTrailer.innerHTML = `<iframe class="w-full h-full aspect-video" src="${youtubeEmbedUrl}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>`;
+                detailTrailer.classList.remove('animate-pulse', 'bg-gray-700');
+            }
+            if(detailTrailerSection) detailTrailerSection.classList.remove('hidden');
+        } else {
+            if(detailTrailer) detailTrailer.innerHTML = '';
+            if(detailTrailerSection) detailTrailerSection.classList.add('hidden');
+        }
+        // Characters
+        if (media.characters?.edges?.length > 0 && detailCharacters) {
+            detailCharacters.innerHTML = media.characters.edges.map(edge => `
+                <div class="detail-list-item">
+                    <img src="${edge.node.image?.large || 'https://placehold.co/80x110/1f2937/4a5568?text=N/A'}" alt="${edge.node.name?.full || '?'}" loading="lazy" class="shadow-md"/>
+                    <p class="line-clamp-2">${edge.node.name?.full || 'Unknown'}</p>
+                    <p class="text-xs text-gray-500">${edge.role}</p>
+                </div>`).join('');
+        } else if(detailCharacters) {
+            detailCharacters.innerHTML = '<p class="text-sm text-gray-400 italic col-span-full">No character data available.</p>';
+        }
+        // Staff
+        if (media.staff?.edges?.length > 0 && detailStaff) {
+            detailStaff.innerHTML = media.staff.edges.map(edge => `
+                <div class="detail-list-item">
+                    <img src="${edge.node.image?.large || 'https://placehold.co/80x110/1f2937/4a5568?text=N/A'}" alt="${edge.node.name?.full || '?'}" loading="lazy" class="shadow-md"/>
+                    <p class="line-clamp-2">${edge.node.name?.full || 'Unknown'}</p>
+                    <p class="text-xs text-gray-500">${edge.role}</p>
+                </div>`).join('');
+        } else if(detailStaff) {
+            detailStaff.innerHTML = '<p class="text-sm text-gray-400 italic col-span-full">No staff data available.</p>';
+        }
+        // Relations
+        if (media.relations?.edges?.length > 0 && detailRelations) {
+             detailRelations.innerHTML = media.relations.edges
+                 .filter(edge => edge.node.type === 'ANIME') // Only show related ANIME
+                 .map(edge => {
+                     const relTitle = edge.node.title.english || edge.node.title.romaji || edge.node.title.native || 'Related Title';
+                     const relImage = edge.node.coverImage?.large || `https://placehold.co/100x150/1f2937/4a5568?text=N/A`;
+                     const relFallbackImage = `https://placehold.co/100x150/1f2937/4a5568?text=N/A`;
+                     // Link to anime.html for related items
+                     return `
+                         <a href="anime.html?id=${edge.node.id}" class="block bg-gray-700 rounded overflow-hidden text-center text-xs p-1 cursor-pointer hover:bg-gray-600 transition-colors" title="${edge.relationType.replace(/_/g, ' ')}">
+                             <img src="${relImage}" alt="${relTitle}" class="w-full h-24 object-cover mb-1 pointer-events-none" loading="lazy" onerror="this.onerror=null;this.src='${relFallbackImage}';"/>
+                             <p class="line-clamp-2 text-gray-300 pointer-events-none">${relTitle}</p>
+                             <p class="text-gray-500 pointer-events-none">${edge.relationType.replace(/_/g, ' ')}</p>
+                         </a>`;
+                 }).join('');
+
+             if(detailRelations.innerHTML.trim() !== '') {
+                  if(detailRelationsSection) detailRelationsSection.classList.remove('hidden');
+             } else {
+                  if(detailRelationsSection) detailRelationsSection.classList.add('hidden');
+             }
+        } else {
+             if(detailRelations) detailRelations.innerHTML = '';
+             if(detailRelationsSection) detailRelationsSection.classList.add('hidden');
+        }
+
+    } catch (error) {
+        console.error('Fetch Detail Error:', error);
+        if(detailLoadingMessage) detailLoadingMessage.classList.add('hidden');
+        if(detailErrorMessage) {
+            detailErrorMessage.textContent = `Failed to load details: ${error.message}`;
+            detailErrorMessage.classList.remove('hidden');
+        }
+        if(detailContentArea) detailContentArea.classList.add('hidden'); // Hide content area on error
+        document.title = 'AniStream - Error';
+    }
+}
