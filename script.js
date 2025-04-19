@@ -2,7 +2,6 @@
 const ANILIST_API_URL = 'https://graphql.anilist.co';
 let searchTimeoutId = null;
 let featuredSwiper = null; // Keep Swiper instance reference if used on index
-const DEFAULT_THEME = 'light';  // Added constant for default theme
 
 // --- AniList API Queries ---
 // Browse Query (for index.html)
@@ -226,26 +225,26 @@ function createSearchSuggestionHTML(media) {
 
 // --- Swiper Initialization (for index.html) ---
 function initializeFeaturedSwiper(containerSelector = '#featured-swiper') {
-    if (typeof Swiper === 'undefined') { console.error("Swiper library not loaded."); return; }
-    if (featuredSwiper) { try { featuredSwiper.destroy(true, true); } catch (e) { console.warn("Error destroying previous Swiper instance:", e); } featuredSwiper = null; }
-    const swiperContainer = document.querySelector(containerSelector);
-    if (!swiperContainer) { console.warn(containerSelector + " container not found for Swiper."); return; }
-    const slides = swiperContainer.querySelectorAll('.swiper-slide');
-    if (slides.length === 0) { console.warn("No slides found in " + containerSelector + ". Swiper not initialized."); return; }
+     if (typeof Swiper === 'undefined') { console.error("Swiper library not loaded."); return; }
+     if (featuredSwiper) { try { featuredSwiper.destroy(true, true); } catch (e) { console.warn("Error destroying previous Swiper instance:", e); } featuredSwiper = null; }
+     const swiperContainer = document.querySelector(containerSelector);
+     if (!swiperContainer) { console.warn(containerSelector + " container not found for Swiper."); return; }
+     const slides = swiperContainer.querySelectorAll('.swiper-slide');
+     if (slides.length === 0) { console.warn("No slides found in " + containerSelector + ". Swiper not initialized."); return; }
 
-    try {
-        featuredSwiper = new Swiper(containerSelector, {
-            modules: [Swiper.Pagination, Swiper.Autoplay, Swiper.EffectFade],
-            loop: slides.length > 1,
-            autoplay: { delay: 5000, disableOnInteraction: false },
-            pagination: { el: containerSelector + ' .swiper-pagination', clickable: true },
-            effect: 'fade',
-            fadeEffect: { crossFade: true },
-            observer: true, observeParents: true,
-            keyboard: { enabled: true, onlyInViewport: false },
-            a11y: { prevSlideMessage: 'Previous slide', nextSlideMessage: 'Next slide', paginationBulletMessage: 'Go to slide {{index}}' },
-        });
-    } catch (e) { console.error("Error initializing Swiper:", e); }
+     try {
+         featuredSwiper = new Swiper(containerSelector, {
+             modules: [Swiper.Pagination, Swiper.Autoplay, Swiper.EffectFade],
+             loop: slides.length > 1,
+             autoplay: { delay: 5000, disableOnInteraction: false },
+             pagination: { el: containerSelector + ' .swiper-pagination', clickable: true },
+             effect: 'fade',
+             fadeEffect: { crossFade: true },
+             observer: true, observeParents: true,
+             keyboard: { enabled: true, onlyInViewport: false },
+             a11y: { prevSlideMessage: 'Previous slide', nextSlideMessage: 'Next slide', paginationBulletMessage: 'Go to slide {{index}}' },
+         });
+     } catch (e) { console.error("Error initializing Swiper:", e); }
 }
 
 // --- Search Functionality (Common) ---
@@ -261,23 +260,23 @@ function setupSearch(searchInputId = 'search-input', suggestionsContainerId = 's
     function hideSearchSuggestions() { if(searchSuggestionsContainer) searchSuggestionsContainer.classList.add('hidden'); }
 
     async function fetchAndDisplaySuggestions(term) {
-        if (!term || term.length < 3) { hideSearchSuggestions(); return; }
-        const variables = { search: term, perPage: 6 };
-        try {
-            const data = await fetchApi(ANILIST_SEARCH_QUERY, variables);
-            const mediaList = data?.Page?.media || [];
-            if (!searchSuggestionsContainer) return;
-            if (mediaList.length === 0) {
-                searchSuggestionsContainer.innerHTML = '<p class="text-gray-400 text-sm p-3 text-center">No results found.</p>';
-            } else {
-                searchSuggestionsContainer.innerHTML = mediaList.map(media => createSearchSuggestionHTML(media)).join('');
-            }
-            showSearchSuggestions();
-        } catch (error) {
-            console.error('Fetch Suggestions Error:', error);
-            if(searchSuggestionsContainer) searchSuggestionsContainer.innerHTML = `<p class="text-red-500 text-sm p-3 text-center">Error loading suggestions.</p>`;
-            showSearchSuggestions();
-        }
+         if (!term || term.length < 3) { hideSearchSuggestions(); return; }
+         const variables = { search: term, perPage: 6 };
+         try {
+             const data = await fetchApi(ANILIST_SEARCH_QUERY, variables);
+             const mediaList = data?.Page?.media || [];
+             if (!searchSuggestionsContainer) return;
+             if (mediaList.length === 0) {
+                 searchSuggestionsContainer.innerHTML = '<p class="text-gray-400 text-sm p-3 text-center">No results found.</p>';
+             } else {
+                 searchSuggestionsContainer.innerHTML = mediaList.map(media => createSearchSuggestionHTML(media)).join('');
+             }
+             showSearchSuggestions();
+         } catch (error) {
+             console.error('Fetch Suggestions Error:', error);
+             if(searchSuggestionsContainer) searchSuggestionsContainer.innerHTML = `<p class="text-red-500 text-sm p-3 text-center">Error loading suggestions.</p>`;
+             showSearchSuggestions();
+         }
     }
 
     const debouncedFetch = debounce(fetchAndDisplaySuggestions, 350);
@@ -295,7 +294,7 @@ function setupSearch(searchInputId = 'search-input', suggestionsContainerId = 's
                     hideSearchSuggestions();
                     // Also hide mobile search bar if needed
                     if (window.innerWidth < 1024 && !searchInput.classList.contains('hidden')) {
-                        toggleMobileSearch(false); // Assuming toggleMobileSearch is available globally or passed in
+                       toggleMobileSearch(false); // Assuming toggleMobileSearch is available globally or passed in
                     }
                 }
             }, 150); // Delay to allow click event on suggestions
@@ -304,28 +303,28 @@ function setupSearch(searchInputId = 'search-input', suggestionsContainerId = 's
 
     // Mobile search toggle logic (needs access to header elements)
     function toggleMobileSearch(show) {
-        if (window.innerWidth >= 1024) return; // Only on small screens
-        if (show) {
-            if(headerTitle) headerTitle.classList.add('hidden');
-            if(mobileMenuButton) mobileMenuButton.classList.add('hidden');
-            if(searchIconButton) searchIconButton.classList.add('hidden');
-            if(searchInput) {
-                searchInput.classList.remove('hidden', 'lg:block'); // Ensure it's not hidden and remove lg:block
-                searchInput.classList.add('block','w-full'); // Make it block and full width
-                searchInput.focus();
-            }
-        } else {
-            if(headerTitle) headerTitle.classList.remove('hidden');
-            if(mobileMenuButton) mobileMenuButton.classList.remove('hidden');
-            if(searchIconButton) searchIconButton.classList.remove('hidden');
-            if(searchInput) {
-                searchInput.classList.remove('block','w-full'); // Remove block/width styles
-                searchInput.classList.add('hidden', 'lg:block'); // Add back hidden and lg:block
-                searchInput.value = '';
-            }
-            hideSearchSuggestions();
-        }
-    }
+         if (window.innerWidth >= 1024) return; // Only on small screens
+         if (show) {
+             if(headerTitle) headerTitle.classList.add('hidden');
+             if(mobileMenuButton) mobileMenuButton.classList.add('hidden');
+             if(searchIconButton) searchIconButton.classList.add('hidden');
+             if(searchInput) {
+                 searchInput.classList.remove('hidden', 'lg:block'); // Ensure it's not hidden and remove lg:block
+                 searchInput.classList.add('block','w-full'); // Make it block and full width
+                 searchInput.focus();
+             }
+         } else {
+              if(headerTitle) headerTitle.classList.remove('hidden');
+              if(mobileMenuButton) mobileMenuButton.classList.remove('hidden');
+              if(searchIconButton) searchIconButton.classList.remove('hidden');
+              if(searchInput) {
+                  searchInput.classList.remove('block','w-full'); // Remove block/width styles
+                  searchInput.classList.add('hidden', 'lg:block'); // Add back hidden and lg:block
+                  searchInput.value = '';
+              }
+              hideSearchSuggestions();
+         }
+     }
 
     if(searchIconButton) {
         searchIconButton.addEventListener('click', () => toggleMobileSearch(true));
@@ -334,20 +333,20 @@ function setupSearch(searchInputId = 'search-input', suggestionsContainerId = 's
     // Global click listener to hide suggestions if clicked outside search area
     document.addEventListener('click', (event) => {
         const isClickInsideSearch = searchInput?.contains(event.target) ||
-                                    searchSuggestionsContainer?.contains(event.target) ||
-                                    searchIconButton?.contains(event.target);
+                                   searchSuggestionsContainer?.contains(event.target) ||
+                                   searchIconButton?.contains(event.target);
 
         if (!isClickInsideSearch) {
             hideSearchSuggestions();
             // Also hide mobile search if it's open and click is outside
             if (window.innerWidth < 1024 && searchInput && !searchInput.classList.contains('hidden')) {
-                toggleMobileSearch(false);
+                 toggleMobileSearch(false);
             }
         }
     });
 
-    // Expose toggleMobileSearch if needed by other parts (like mobile menu closing)
-    // window.toggleMobileSearch = toggleMobileSearch;
+     // Expose toggleMobileSearch if needed by other parts (like mobile menu closing)
+     // window.toggleMobileSearch = toggleMobileSearch;
 }
 
 
@@ -393,63 +392,6 @@ function setupMobileMenu(menuButtonId = 'mobile-menu-button', sidebarContainerId
     });
 }
 
-// --- Dark Mode Functionality (Common) ---
-function toggleDarkMode() {
-    const htmlElement = document.querySelector('html');
-    const currentTheme = localStorage.getItem('theme') || DEFAULT_THEME;
-    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-
-    htmlElement.classList.toggle('dark', newTheme === 'dark');
-    localStorage.setItem('theme', newTheme);
-
-    // Update the icon
-    const themeIcon = document.getElementById('theme-icon');
-     const themeIconDesktop = document.getElementById('theme-icon-desktop');
-    const mobileThemeIcon = document.getElementById('mobile-theme-icon');
-    if (themeIcon) {
-        themeIcon.textContent = newTheme === 'dark'
-            ? `<path d="M12 3a6 6 0 0 1 9 9 9 9 0 11-9-9Z"></path>` // Moon icon
-            : `<circle cx="12" cy="12" r="4"></circle><path d="M12 8v1"></path><path d="M12 15v1"></path><path d="m17.7 7.7-1.4 1.4"></path><path d="m7.7 7.7 1.4 1.4"></path><path d="M20 12h-1"></path><path d="M5 12H4"></path><path d="m16.3 17.7 1.4-1.4"></path><path d="m7.7 16.3 1.4-1.4"></path>`; // Sun icon
-    }
-     if (themeIconDesktop) {
-        themeIconDesktop.textContent = newTheme === 'dark'
-            ? `<path d="M12 3a6 6 0 0 1 9 9 9 9 0 11-9-9Z"></path>` // Moon icon
-            : `<circle cx="12" cy="12" r="4"></circle><path d="M12 8v1"></path><path d="M12 15v1"></path><path d="m17.7 7.7-1.4 1.4"></path><path d="m7.7 7.7 1.4 1.4"></path><path d="M20 12h-1"></path><path d="M5 12H4"></path><path d="m16.3 17.7 1.4-1.4"></path><path d="m7.7 16.3 1.4-1.4"></path>`; // Sun icon
-    }
-    if (mobileThemeIcon) {
-        mobileThemeIcon.textContent = newTheme === 'dark'
-            ? `<path d="M12 3a6 6 0 0 1 9 9 9 9 0 11-9-9Z"></path>` // Moon icon
-            : `<circle cx="12" cy="12" r="4"></circle><path d="M12 8v1"></path><path d="M12 15v1"></path><path d="m17.7 7.7-1.4 1.4"></path><path d="m7.7 7.7 1.4 1.4"></path><path d="M20 12h-1"></path><path d="M5 12H4"></path><path d="m16.3 17.7 1.4-1.4"></path><path d="m7.7 16.3 1.4-1.4"></path>`; // Sun icon
-    }
-}
-
-function applyInitialTheme() {
-    const theme = localStorage.getItem('theme') || DEFAULT_THEME;
-    const htmlElement = document.querySelector('html');
-    htmlElement.classList.toggle('dark', theme === 'dark');
-
-    // Set initial theme icon
-    const themeIcon = document.getElementById('theme-icon');
-      const themeIconDesktop = document.getElementById('theme-icon-desktop');
-    const mobileThemeIcon = document.getElementById('mobile-theme-icon');
-    if (themeIcon) {
-        themeIcon.textContent = theme === 'dark'
-            ? `<path d="M12 3a6 6 0 0 1 9 9 9 9 0 11-9-9Z"></path>` // Moon icon
-            : `<circle cx="12" cy="12" r="4"></circle><path d="M12 8v1"></path><path d="M12 15v1"></path><path d="m17.7 7.7-1.4 1.4"></path><path d="m7.7 7.7 1.4 1.4"></path><path d="M20 12h-1"></path><path d="M5 12H4"></path><path d="m16.3 17.7 1.4-1.4"></path><path d="m7.7 16.3 1.4-1.4"></path>`; // Sun icon
-    }
-     if (themeIconDesktop) {
-        themeIconDesktop.textContent = theme === 'dark'
-            ? `<path d="M12 3a6 6 0 0 1 9 9 9 9 0 11-9-9Z"></path>` // Moon icon
-            : `<circle cx="12" cy="12" r="4"></circle><path d="M12 8v1"></path><path d="M12 15v1"></path><path d="m17.7 7.7-1.4 1.4"></path><path d="m7.7 7.7 1.4 1.4"></path><path d="M20 12h-1"></path><path d="M5 12H4"></path><path d="m16.3 17.7 1.4-1.4"></path><path d="m7.7 16.3 1.4-1.4"></path>`; // Sun icon
-    }
-    if (mobileThemeIcon) {
-        mobileThemeIcon.textContent = theme === 'dark'
-            ? `<path d="M12 3a6 6 0 0 1 9 9 9 9 0 11-9-9Z"></path>` // Moon icon
-            : `<circle cx="12" cy="12" r="4"></circle><path d="M12 8v1"></path><path d="M12 15v1"></path><path d="m17.7 7.7-1.4 1.4"></path><path d="m7.7 7.7 1.4 1.4"></path><path d="M20 12h-1"></path><path d="M5 12H4"></path><path d="m16.3 17.7 1.4-1.4"></path><path d="m7.7 16.3 1.4-1.4"></path>`; // Sun icon
-    }
-}
-
-
 // --- Footer Year (Common) ---
 function setFooterYear(footerYearId = 'footer-year') {
     const footerYearSpan = document.getElementById(footerYearId);
@@ -467,7 +409,6 @@ async function initIndexPage() {
     setFooterYear();
     setupSearch(); // Use default IDs
     setupMobileMenu(); // Use default IDs
-    applyInitialTheme();
 
     // Get DOM elements specific to index page
     const swiperWrapperFeatured = document.getElementById('swiper-wrapper-featured');
@@ -475,12 +416,8 @@ async function initIndexPage() {
     const popularGrid = document.getElementById('popular-grid');
     const topAnimeListDesktop = document.getElementById('top-anime-list-desktop');
     const topAnimeListMobile = document.getElementById('top-anime-list-mobile');
-     const topAnimeListBottomMobile = document.getElementById('top-anime-list-bottom-mobile');
+    const topAnimeListBottomMobile = document.getElementById('top-anime-list-bottom-mobile');
     const errorMessageDiv = document.getElementById('error-message');
-    const darkModeToggle = document.getElementById('dark-mode-toggle');
-      const darkModeToggleDesktop = document.getElementById('dark-mode-toggle-desktop');
-    const mobileDarkModeToggle = document.getElementById('mobile-dark-mode-toggle');
-
 
     // Fetch and display browse data
     if (errorMessageDiv) errorMessageDiv.classList.add('hidden');
@@ -506,14 +443,14 @@ async function initIndexPage() {
         if (popularGrid) popularGrid.innerHTML = '';
         if (topAnimeListDesktop) topAnimeListDesktop.innerHTML = '';
         if (topAnimeListMobile) topAnimeListMobile.innerHTML = '';
-         if (topAnimeListBottomMobile) topAnimeListBottomMobile.innerHTML = '';
+        if (topAnimeListBottomMobile) topAnimeListBottomMobile.innerHTML = '';
 
 
         // Populate Featured Slider
         if (hasTrending && swiperWrapperFeatured) {
             // Use first few trending items for slider
             data.trending.media.slice(0, 5).forEach(anime => {
-                swiperWrapperFeatured.innerHTML += createFeaturedSlideHTML(anime);
+                 swiperWrapperFeatured.innerHTML += createFeaturedSlideHTML(anime);
             });
             setTimeout(() => initializeFeaturedSwiper(), 0); // Initialize after DOM update
         } else if (swiperWrapperFeatured) {
@@ -535,20 +472,20 @@ async function initIndexPage() {
                 popularGrid.innerHTML += createAnimeCardHTML(anime);
             });
         } else if (popularGrid) {
-            popularGrid.innerHTML = '<p class="text-gray-400 col-span-full">Couldnot load popular anime for this season.</p>';
+            popularGrid.innerHTML = '<p class="text-gray-400 col-span-full">Could not load popular anime for this season.</p>';
         }
 
         // Populate Top Anime Lists
-         if (hasTop) {
+        if (hasTop) {
             const topAnimeHTML = data.top.media.map((anime, index) => createTopAnimeListItemHTML(anime, index)).join('');
             if (topAnimeListDesktop) topAnimeListDesktop.innerHTML = topAnimeHTML;
             if (topAnimeListMobile) topAnimeListMobile.innerHTML = topAnimeHTML;
-             if (topAnimeListBottomMobile) topAnimeListBottomMobile.innerHTML = topAnimeHTML;
+            if (topAnimeListBottomMobile) topAnimeListBottomMobile.innerHTML = topAnimeHTML;
         } else {
             const errorMsg = '<li><p class="text-gray-400 p-2">Could not load top anime.</p></li>';
             if (topAnimeListDesktop) topAnimeListDesktop.innerHTML = errorMsg;
             if (topAnimeListMobile) topAnimeListMobile.innerHTML = errorMsg;
-             if (topAnimeListBottomMobile) topAnimeListBottomMobile.innerHTML = errorMsg;
+            if (topAnimeListBottomMobile) topAnimeListBottomMobile.innerHTML = errorMsg;
         }
 
     } catch (error) {
@@ -564,18 +501,7 @@ async function initIndexPage() {
         const errorMsgTop = '<li><p class="text-red-400 p-2">Failed to load top anime.</p></li>';
         if (topAnimeListDesktop) topAnimeListDesktop.innerHTML = errorMsgTop;
         if (topAnimeListMobile) topAnimeListMobile.innerHTML = errorMsgTop;
-         if (topAnimeListBottomMobile) topAnimeListBottomMobile.innerHTML = errorMsgTop;
-    }
-
-    // Event Listeners for Dark Mode Toggle
-    if (darkModeToggle) {
-        darkModeToggle.addEventListener('click', toggleDarkMode);
-    }
-     if (darkModeToggleDesktop) {
-        darkModeToggleDesktop.addEventListener('click', toggleDarkMode);
-    }
-    if (mobileDarkModeToggle) {
-        mobileDarkModeToggle.addEventListener('click', toggleDarkMode);
+        if (topAnimeListBottomMobile) topAnimeListBottomMobile.innerHTML = errorMsgTop;
     }
 }
 
@@ -588,7 +514,6 @@ async function initAnimePage() {
     setFooterYear();
     setupSearch(); // Setup search on this page too
     setupMobileMenu(); // Setup mobile menu
-    applyInitialTheme();
 
     // Get DOM elements specific to detail page
     const detailView = document.getElementById('detail-view'); // Main container
@@ -608,9 +533,6 @@ async function initAnimePage() {
     const detailStaff = document.getElementById('detail-staff');
     const detailRelationsSection = document.getElementById('detail-relations-section');
     const detailRelations = document.getElementById('detail-relations');
-     const darkModeToggle = document.getElementById('dark-mode-toggle');
-      const darkModeToggleDesktop = document.getElementById('dark-mode-toggle-desktop');
-    const mobileDarkModeToggle = document.getElementById('mobile-dark-mode-toggle');
 
     // --- Get Anime ID from URL ---
     const urlParams = new URLSearchParams(window.location.search);
@@ -656,23 +578,23 @@ async function initAnimePage() {
         // Banner
         if(detailBanner) {
             detailBanner.style.backgroundImage = `url('${media.bannerImage || media.coverImage.extraLarge || ''}')`;
-            detailBanner.classList.remove('animate-pulse', 'bg-gray-200');
+            detailBanner.classList.remove('animate-pulse', 'bg-gray-700');
         }
         // Cover Image
         if(detailCoverImage) {
-            detailCoverImage.src = media.coverImage.large || 'https://placehold.co/160x240/f9f9f9/a0aec0?text=N/A';
+            detailCoverImage.src = media.coverImage.large || 'https://placehold.co/160x240/1f2937/4a5568?text=N/A';
             detailCoverImage.alt = `${media.title.english || media.title.romaji} Cover`;
-            detailCoverImage.classList.remove('animate-pulse', 'bg-gray-200');
+            detailCoverImage.classList.remove('animate-pulse', 'bg-gray-700');
         }
         // Title
         if(detailTitle) {
             detailTitle.textContent = media.title.english || media.title.romaji || media.title.native || 'N/A';
-            detailTitle.className = 'text-2xl sm:text-3xl font-bold  mb-1 line-clamp-2';
+            detailTitle.className = 'text-2xl sm:text-3xl font-bold text-white mb-1 line-clamp-2';
         }
         // Genres
         if(detailGenres) {
             detailGenres.textContent = media.genres?.join(' • ') || 'N/A';
-            detailGenres.className = 'text-sm text-purple-500 mb-2';
+            detailGenres.className = 'text-sm text-purple-300 mb-2';
         }
         // Stats
         if(detailStats) {
@@ -683,19 +605,19 @@ async function initAnimePage() {
                 <span>Format: ${media.format?.replace(/_/g, ' ') || '--'}</span>
                 <span>Season: ${media.season || '--'} ${media.seasonYear || '--'}</span>
             `;
-            detailStats.className = 'flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500 mt-2';
+            detailStats.className = 'flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-400 mt-2';
         }
         // Description
         if(detailDescription) {
             detailDescription.textContent = sanitizeDescription(media.description) || 'No description available.';
-            detailDescription.className = 'text-sm  leading-relaxed';
+            detailDescription.className = 'text-sm text-gray-300 leading-relaxed';
         }
         // Trailer
         if (media.trailer?.site === 'youtube' && media.trailer?.id) {
             if(detailTrailer) {
                 const youtubeEmbedUrl = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(media.trailer.id)}`;
                 detailTrailer.innerHTML = `<iframe class="w-full h-full aspect-video" src="${youtubeEmbedUrl}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>`;
-                detailTrailer.classList.remove('animate-pulse', 'bg-gray-200');
+                detailTrailer.classList.remove('animate-pulse', 'bg-gray-700');
             }
             if(detailTrailerSection) detailTrailerSection.classList.remove('hidden');
         } else {
@@ -705,50 +627,50 @@ async function initAnimePage() {
         // Characters
         if (media.characters?.edges?.length > 0 && detailCharacters) {
             detailCharacters.innerHTML = media.characters.edges.map(edge => `
-                    <div class="detail-list-item">
-                        <img src="${edge.node.image?.large || 'https://placehold.co/80x110/f9f9f9/a0aec0?text=N/A'}" alt="${edge.node.name?.full || '?'}" loading="lazy" class="shadow-md"/>
-                        <p class="line-clamp-2">${edge.node.name?.full || 'Unknown'}</p>
-                        <p class="text-xs text-gray-500">${edge.role}</p>
-                    </div>`).join('');
+                <div class="detail-list-item">
+                    <img src="${edge.node.image?.large || 'https://placehold.co/80x110/1f2937/4a5568?text=N/A'}" alt="${edge.node.name?.full || '?'}" loading="lazy" class="shadow-md"/>
+                    <p class="line-clamp-2">${edge.node.name?.full || 'Unknown'}</p>
+                    <p class="text-xs text-gray-500">${edge.role}</p>
+                </div>`).join('');
         } else if(detailCharacters) {
             detailCharacters.innerHTML = '<p class="text-sm text-gray-400 italic col-span-full">No character data available.</p>';
         }
         // Staff
         if (media.staff?.edges?.length > 0 && detailStaff) {
             detailStaff.innerHTML = media.staff.edges.map(edge => `
-                    <div class="detail-list-item">
-                        <img src="${edge.node.image?.large || 'https://placehold.co/80x110/f9f9f9/a0aec0?text=N/A'}" alt="${edge.node.name?.full || '?'}" loading="lazy" class="shadow-md"/>
-                        <p class="line-clamp-2">${edge.node.name?.full || 'Unknown'}</p>
-                        <p class="text-xs text-gray-500">${edge.role}</p>
-                    </div>`).join('');
+                <div class="detail-list-item">
+                    <img src="${edge.node.image?.large || 'https://placehold.co/80x110/1f2937/4a5568?text=N/A'}" alt="${edge.node.name?.full || '?'}" loading="lazy" class="shadow-md"/>
+                    <p class="line-clamp-2">${edge.node.name?.full || 'Unknown'}</p>
+                    <p class="text-xs text-gray-500">${edge.role}</p>
+                </div>`).join('');
         } else if(detailStaff) {
             detailStaff.innerHTML = '<p class="text-sm text-gray-400 italic col-span-full">No staff data available.</p>';
         }
         // Relations
         if (media.relations?.edges?.length > 0 && detailRelations) {
-            detailRelations.innerHTML = media.relations.edges
-                .filter(edge => edge.node.type === 'ANIME') // Only show related ANIME
-                .map(edge => {
-                    const relTitle = edge.node.title.english || edge.node.title.romaji || edge.node.title.native || 'Related Title';
-                    const relImage = edge.node.coverImage?.large || `https://placehold.co/100x150/f9f9f9/a0aec0?text=N/A`;
-                    const relFallbackImage = `https://placehold.co/100x150/f9f9f9/a0aec0?text=N/A`;
-                    // Link to anime.html for related items
-                    return `
-                        <a href="anime.html?id=${edge.node.id}" class="block bg-gray-200 rounded overflow-hidden text-center text-xs p-1 cursor-pointer hover:bg-gray-300 transition-colors" title="${edge.relationType.replace(/_/g, ' ')}">
-                            <img src="${relImage}" alt="${relTitle}" class="w-full h-24 object-cover mb-1 pointer-events-none" loading="lazy" onerror="this.onerror=null;this.src='${relFallbackImage}';"/>
-                            <p class="line-clamp-2 text-gray-700 pointer-events-none">${relTitle}</p>
-                            <p class="text-gray-500 pointer-events-none">${edge.relationType.replace(/_/g, ' ')}</p>
-                        </a>`;
-                }).join('');
+             detailRelations.innerHTML = media.relations.edges
+                 .filter(edge => edge.node.type === 'ANIME') // Only show related ANIME
+                 .map(edge => {
+                     const relTitle = edge.node.title.english || edge.node.title.romaji || edge.node.title.native || 'Related Title';
+                     const relImage = edge.node.coverImage?.large || `https://placehold.co/100x150/1f2937/4a5568?text=N/A`;
+                     const relFallbackImage = `https://placehold.co/100x150/1f2937/4a5568?text=N/A`;
+                     // Link to anime.html for related items
+                     return `
+                         <a href="anime.html?id=${edge.node.id}" class="block bg-gray-700 rounded overflow-hidden text-center text-xs p-1 cursor-pointer hover:bg-gray-600 transition-colors" title="${edge.relationType.replace(/_/g, ' ')}">
+                             <img src="${relImage}" alt="${relTitle}" class="w-full h-24 object-cover mb-1 pointer-events-none" loading="lazy" onerror="this.onerror=null;this.src='${relFallbackImage}';"/>
+                             <p class="line-clamp-2 text-gray-300 pointer-events-none">${relTitle}</p>
+                             <p class="text-gray-500 pointer-events-none">${edge.relationType.replace(/_/g, ' ')}</p>
+                         </a>`;
+                 }).join('');
 
-            if(detailRelations.innerHTML.trim() !== '') {
-                 if(detailRelationsSection) detailRelationsSection.classList.remove('hidden');
-            } else {
-                 if(detailRelationsSection) detailRelationsSection.classList.add('hidden');
-            }
+             if(detailRelations.innerHTML.trim() !== '') {
+                  if(detailRelationsSection) detailRelationsSection.classList.remove('hidden');
+             } else {
+                  if(detailRelationsSection) detailRelationsSection.classList.add('hidden');
+             }
         } else {
-            if(detailRelations) detailRelations.innerHTML = '';
-            if(detailRelationsSection) detailRelationsSection.classList.add('hidden');
+             if(detailRelations) detailRelations.innerHTML = '';
+             if(detailRelationsSection) detailRelationsSection.classList.add('hidden');
         }
 
     } catch (error) {
@@ -761,40 +683,4 @@ async function initAnimePage() {
         if(detailContentArea) detailContentArea.classList.add('hidden'); // Hide content area on error
         document.title = 'AniStream - Error';
     }
-    // Event Listeners for Dark Mode Toggle
-    if (darkModeToggle) {
-        darkModeToggle.addEventListener('click', toggleDarkMode);
-    }
-     if (darkModeToggleDesktop) {
-        darkModeToggleDesktop.addEventListener('click', toggleDarkMode);
-    }
-    if (mobileDarkModeToggle) {
-        mobileDarkModeToggle.addEventListener('click', toggleDarkMode);
-    }
 }
-
-
-
-// --- Initialization (Common) ---
-document.addEventListener('DOMContentLoaded', () => {
-    setFooterYear();
-    setupSearch(); // Setup search on all pages
-    setupMobileMenu();
-    applyInitialTheme(); // Set the theme on initial load
-
-     // Add event listener to dark mode toggle buttons.
-    const darkModeToggle = document.getElementById('dark-mode-toggle');
-    const darkModeToggleDesktop = document.getElementById('dark-mode-toggle-desktop');
-    const mobileDarkModeToggle = document.getElementById('mobile-dark-mode-toggle');
-
-
-    if (darkModeToggle) {
-        darkModeToggle.addEventListener('click', toggleDarkMode);
-    }
-     if (darkModeToggleDesktop) {
-        darkModeToggleDesktop.addEventListener('click', toggleDarkMode);
-    }
-    if (mobileDarkModeToggle) {
-        mobileDarkModeToggle.addEventListener('click', toggleDarkMode);
-    }
-});
