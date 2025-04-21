@@ -5,10 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AniStream - Watching...</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vidstack@^1.0.0/player/styles/default/theme.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vidstack@^1.0.0/player/styles/default/layouts/video.min.css" />
+
+    <script type="module" src="https://cdn.jsdelivr.net/npm/vidstack@^1.0.0/player/vidstack.min.js"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/vidstack@^1.0.0/player/layouts/default/ui.min.js"></script>
+
+
     <style>
         /* Common Styles */
         html { scroll-behavior: smooth; }
@@ -29,8 +36,23 @@
 
         /* Episode Page Specific Styles */
         #episode-main-content { display: flex; flex-direction: column; lg:flex-row; gap: 1rem; }
-        #player-wrapper { position: relative; flex-grow: 1; } /* Wrapper for player and skip buttons */
-        #player-container { background-color: #000; border-radius: 0.5rem; overflow: hidden; min-height: 300px; position: relative; /* Needed for overlay */ }
+        #player-wrapper { position: relative; flex-grow: 1; background-color: #000; border-radius: 0.5rem; overflow: hidden; } /* Wrapper styles */
+        #player-container { /* Container for the Vidstack component */
+            width: 100%;
+            height: 100%; /* Ensure it fills wrapper */
+            min-height: 300px;
+            aspect-ratio: 16 / 9; /* Maintain aspect ratio */
+        }
+        media-player { /* Style the Vidstack component itself */
+             width: 100%;
+             height: 100%;
+             border-radius: 0.5rem; /* Match container rounding */
+             /* Vidstack theme variables can be overridden here */
+             --media-brand: #7c3aed; /* Purple accent */
+             --media-focus-ring-color: #a78bfa; /* Lighter purple for focus */
+             --media-tooltip-y-offset: 40px; /* Ensure tooltips appear above controls */
+        }
+
         #episode-sidebar { width: 100%; lg:width: 320px; /* Fixed width on large screens */ flex-shrink: 0; background-color: #1f2937; border-radius: 0.5rem; padding: 1rem; max-height: calc(100vh - 120px); /* Adjust based on header/footer */ overflow-y: auto; }
         #episode-list { max-height: calc(100vh - 250px); /* Adjust based on surrounding elements */ overflow-y: auto; }
         #episode-list::-webkit-scrollbar { width: 5px; }
@@ -41,18 +63,13 @@
         .episode-list-item.active { background-color: #4f46e5; /* Indigo */ color: #fff; font-weight: 600; border-color: #6366f1; }
         .episode-list-item.active:hover { background-color: #4338ca; }
 
-        /* Plyr Customizations */
-        :root { --plyr-color-main: #7c3aed; /* Purple */ }
-        .plyr { border-radius: 0.5rem; }
-        /* Ensure settings menu has enough space */
-        .plyr__menu { max-height: 250px; overflow-y: auto; }
 
-        /* Skip Buttons */
+        /* Skip Buttons (Positioned relative to #player-wrapper) */
         .skip-button {
             position: absolute;
-            bottom: 70px; /* Position above controls */
+            bottom: 80px; /* Adjust vertical position (higher due to larger controls) */
             right: 20px;
-            z-index: 20; /* Above player controls overlay */
+            z-index: 30; /* Ensure above player UI */
             background-color: rgba(26, 32, 44, 0.8); /* bg-gray-800 with opacity */
             color: #e2e8f0; /* text-gray-200 */
             padding: 0.5rem 1rem;
@@ -60,7 +77,7 @@
             font-size: 0.875rem; /* text-sm */
             font-weight: 500;
             cursor: pointer;
-            transition: opacity 0.3s ease, background-color 0.2s ease, visibility 0.3s ease;
+            transition: opacity 0.3s ease, visibility 0.3s ease, background-color 0.2s ease;
             border: 1px solid rgba(74, 85, 104, 0.5); /* border-gray-600ish */
             opacity: 0; /* Hidden state */
             visibility: hidden; /* Hidden state */
@@ -132,24 +149,34 @@
 
         <div id="episode-loading-message" class="text-purple-300 bg-gray-800 p-4 rounded-lg mb-4 text-center">
               <div class="flex justify-center items-center space-x-2">
-                <svg class="animate-spin h-5 w-5 text-purple-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span>Loading Episode...</span>
-            </div>
+                  <svg class="animate-spin h-5 w-5 text-purple-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span>Loading Episode...</span>
+              </div>
         </div>
         <div id="episode-error-message" class="hidden text-red-400 bg-red-900/30 p-4 rounded-lg mb-4">
             </div>
 
         <div id="episode-main-content" class="hidden"> <div class="flex flex-col gap-4 flex-grow">
+
                 <div id="player-wrapper">
-                    <div id="player-container" class="relative aspect-video w-full">
-                         <video id="video-player" playsinline controls class="w-full h-full">
-                            </video>
-                         <div id="player-overlay" class="absolute inset-0 bg-black bg-opacity-70 flex items-center justify-center hidden z-10">
-                            <span id="player-overlay-message" class="text-white text-lg"></span>
-                         </div>
+                    <div id="player-container">
+                        <media-player id="vidstack-player" class="w-full h-full"
+                            title="Loading Anime Title..." <?php /* Title set by JS */ ?>
+                            src="" <?php /* Source set by JS */ ?>
+                            poster="" <?php /* Optional: Poster set by JS */ ?>
+                            thumbnails="" <?php /* Optional: Thumbnails VTT set by JS */ ?>
+                            aspect-ratio="16/9"
+                            crossorigin
+                            playsinline
+                            autoplay <?php /* Add autoplay attribute if desired */ ?>
+                            >
+                            <media-outlet class="w-full h-full">
+                                </media-outlet>
+                             <media-community-skin></media-community-skin>
+                        </media-player>
                     </div>
                     <button id="skip-intro-button" class="skip-button">Skip Intro</button>
                     <button id="skip-outro-button" class="skip-button">Skip Outro</button>
@@ -200,8 +227,6 @@
         <p>This is a conceptual clone for demonstration purposes. Streaming links are provided by third-party APIs.</p>
     </footer>
 
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-    <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
     <script src="script.js"></script>
 
     <script>
