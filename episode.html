@@ -29,7 +29,8 @@
 
         /* Episode Page Specific Styles */
         #episode-main-content { display: flex; flex-direction: column; lg:flex-row; gap: 1rem; }
-        #player-container { flex-grow: 1; /* Takes up available space */ background-color: #000; border-radius: 0.5rem; overflow: hidden; min-height: 300px; /* Ensure minimum height */ }
+        #player-wrapper { position: relative; flex-grow: 1; } /* Wrapper for player and skip buttons */
+        #player-container { background-color: #000; border-radius: 0.5rem; overflow: hidden; min-height: 300px; position: relative; /* Needed for overlay */ }
         #episode-sidebar { width: 100%; lg:width: 320px; /* Fixed width on large screens */ flex-shrink: 0; background-color: #1f2937; border-radius: 0.5rem; padding: 1rem; max-height: calc(100vh - 120px); /* Adjust based on header/footer */ overflow-y: auto; }
         #episode-list { max-height: calc(100vh - 250px); /* Adjust based on surrounding elements */ overflow-y: auto; }
         #episode-list::-webkit-scrollbar { width: 5px; }
@@ -40,9 +41,42 @@
         .episode-list-item.active { background-color: #4f46e5; /* Indigo */ color: #fff; font-weight: 600; border-color: #6366f1; }
         .episode-list-item.active:hover { background-color: #4338ca; }
 
-        /* Plyr Customizations (Example) */
+        /* Plyr Customizations */
         :root { --plyr-color-main: #7c3aed; /* Purple */ }
         .plyr { border-radius: 0.5rem; }
+        /* Ensure settings menu has enough space */
+        .plyr__menu { max-height: 250px; overflow-y: auto; }
+
+        /* Skip Buttons */
+        .skip-button {
+            position: absolute;
+            bottom: 70px; /* Position above controls */
+            right: 20px;
+            z-index: 20; /* Above player controls overlay */
+            background-color: rgba(26, 32, 44, 0.8); /* bg-gray-800 with opacity */
+            color: #e2e8f0; /* text-gray-200 */
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem; /* rounded-md */
+            font-size: 0.875rem; /* text-sm */
+            font-weight: 500;
+            cursor: pointer;
+            transition: opacity 0.3s ease, background-color 0.2s ease, visibility 0.3s ease;
+            border: 1px solid rgba(74, 85, 104, 0.5); /* border-gray-600ish */
+            opacity: 0; /* Hidden state */
+            visibility: hidden; /* Hidden state */
+            pointer-events: none; /* Hidden state */
+        }
+        .skip-button.visible {
+            opacity: 1;
+            visibility: visible; /* Make visible */
+            pointer-events: auto;
+        }
+        .skip-button:hover {
+             background-color: rgba(45, 55, 72, 0.9); /* bg-gray-700 with opacity */
+             color: #fff;
+        }
+        /* Position outro button differently if needed, e.g., on the left */
+        /* #skip-outro-button { left: 20px; right: auto; } */
 
         /* Loading/Error States */
         .skeleton-block { background-color: #374151; border-radius: 0.375rem; animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
@@ -55,7 +89,6 @@
     <header id="main-header" class="bg-gray-900 bg-opacity-80 backdrop-blur-sm p-4 shadow-md sticky top-0 z-30">
         <div class="container mx-auto flex justify-between items-center gap-4">
             <a href="index.html" class="text-2xl font-bold text-purple-400 cursor-pointer flex-shrink-0">AniStream</a>
-
             <div class="flex-grow relative flex justify-end lg:justify-center">
                 <input type="search" id="search-input" placeholder="Search Anime..." class="hidden lg:block w-full max-w-md px-4 py-2 bg-gray-700 text-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder-gray-400 text-sm" aria-label="Search Anime"/>
                 <button id="search-icon-button" class="lg:hidden text-gray-300 hover:text-white p-2 rounded-full hover:bg-gray-700" aria-label="Open search">
@@ -63,11 +96,9 @@
                 </button>
                 <div id="search-suggestions" class="hidden"></div>
             </div>
-
             <nav class="hidden lg:flex items-center space-x-2 flex-shrink-0">
                 <a href="index.html" class="nav-link text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">Home</a>
             </nav>
-
             <button id="mobile-menu-button" class="lg:hidden text-gray-300 hover:text-white focus:outline-none focus:text-white flex-shrink-0" aria-label="Open menu">
                 <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" /></svg>
             </button>
@@ -75,32 +106,32 @@
     </header>
 
     <div id="mobile-sidebar-container" class="fixed inset-0 z-40 lg:hidden pointer-events-none">
-        <div id="sidebar-overlay" class="absolute inset-0 bg-black bg-opacity-60 hidden"></div>
-        <div id="mobile-sidebar" class="absolute inset-y-0 left-0 w-72 bg-gray-800 p-4 transform -translate-x-full z-50 shadow-lg overflow-y-auto pointer-events-auto">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-xl font-bold text-purple-400">Menu</h2>
-                <button id="close-sidebar-button" class="text-gray-400 hover:text-white" aria-label="Close menu">
-                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-            </div>
-            <nav class="mb-6 border-b border-gray-700 pb-4">
-                <a href="index.html" class="mobile-nav-link block py-2.5 px-4 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md transition-colors">Home</a>
-                </nav>
-            </div>
+         <div id="sidebar-overlay" class="absolute inset-0 bg-black bg-opacity-60 hidden"></div>
+         <div id="mobile-sidebar" class="absolute inset-y-0 left-0 w-72 bg-gray-800 p-4 transform -translate-x-full z-50 shadow-lg overflow-y-auto pointer-events-auto">
+             <div class="flex justify-between items-center mb-6">
+                 <h2 class="text-xl font-bold text-purple-400">Menu</h2>
+                 <button id="close-sidebar-button" class="text-gray-400 hover:text-white" aria-label="Close menu">
+                     <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                 </button>
+             </div>
+             <nav class="mb-6 border-b border-gray-700 pb-4">
+                 <a href="index.html" class="mobile-nav-link block py-2.5 px-4 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md transition-colors">Home</a>
+                 </nav>
+             </div>
     </div>
 
     <main class="container mx-auto mt-6 p-4">
         <div class="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-             <button id="back-to-detail-button" class="inline-flex items-center px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-md transition-colors order-2 sm:order-1">
+             <a href="#" id="back-to-detail-button" class="inline-flex items-center px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-md transition-colors order-2 sm:order-1">
                 <svg class="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
                 Back to Details
-            </button>
+            </a>
             <h1 id="episode-title-area" class="text-xl md:text-2xl font-semibold text-gray-100 order-1 sm:order-2 line-clamp-1">
                 <span class="skeleton-block inline-block h-6 w-64"></span> </h1>
         </div>
 
         <div id="episode-loading-message" class="text-purple-300 bg-gray-800 p-4 rounded-lg mb-4 text-center">
-            <div class="flex justify-center items-center space-x-2">
+              <div class="flex justify-center items-center space-x-2">
                 <svg class="animate-spin h-5 w-5 text-purple-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -108,15 +139,20 @@
                 <span>Loading Episode...</span>
             </div>
         </div>
-        <div id="episode-error-message" class="hidden text-red-400 bg-red-900/30 p-4 rounded-lg mb-4"></div>
+        <div id="episode-error-message" class="hidden text-red-400 bg-red-900/30 p-4 rounded-lg mb-4">
+            </div>
 
         <div id="episode-main-content" class="hidden"> <div class="flex flex-col gap-4 flex-grow">
-                <div id="player-container" class="relative aspect-video w-full">
-                     <video id="video-player" playsinline controls class="w-full h-full">
-                        </video>
-                     <div id="player-overlay" class="absolute inset-0 bg-black bg-opacity-70 flex items-center justify-center hidden z-10">
-                        <span id="player-overlay-message" class="text-white text-lg"></span>
-                     </div>
+                <div id="player-wrapper">
+                    <div id="player-container" class="relative aspect-video w-full">
+                         <video id="video-player" playsinline controls class="w-full h-full">
+                            </video>
+                         <div id="player-overlay" class="absolute inset-0 bg-black bg-opacity-70 flex items-center justify-center hidden z-10">
+                            <span id="player-overlay-message" class="text-white text-lg"></span>
+                         </div>
+                    </div>
+                    <button id="skip-intro-button" class="skip-button">Skip Intro</button>
+                    <button id="skip-outro-button" class="skip-button">Skip Outro</button>
                 </div>
 
                 <div class="flex flex-wrap items-center justify-between gap-4 p-3 bg-gray-800 rounded-md">
@@ -134,13 +170,13 @@
                             <option value="vidstreaming">VidStreaming</option>
                             <option value="streamsb">StreamSB</option>
                             <option value="gogocdn">GogoCDN</option>
-                            </select>
+                             </select>
                     </div>
                 </div>
             </div>
 
             <aside id="episode-sidebar">
-                <h2 id="sidebar-anime-title" class="text-lg font-semibold mb-3 border-l-4 border-purple-500 pl-2 text-gray-100 line-clamp-1">
+                 <h2 id="sidebar-anime-title" class="text-lg font-semibold mb-3 border-l-4 border-purple-500 pl-2 text-gray-100 line-clamp-1">
                     <span class="skeleton-block inline-block h-5 w-48"></span> </h2>
                 <div id="episode-list-container">
                     <div id="episode-list-loading" class="space-y-1">
@@ -160,28 +196,33 @@
     </main>
 
     <footer class="bg-gray-800 mt-12 p-4 text-center text-gray-400 text-sm">
-        <p>© <span id="footer-year"></span> AniStream Mockup. Data sourced from AniList & Consumet API.</p>
+         <p>© <span id="footer-year"></span> AniStream Mockup. Data sourced from AniList & Consumet API.</p>
         <p>This is a conceptual clone for demonstration purposes. Streaming links are provided by third-party APIs.</p>
     </footer>
 
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
     <script src="script.js"></script>
+
     <script>
-        // Ensure the DOM is loaded before trying to initialize
+        // Wait for the DOM to be fully loaded before initializing
         document.addEventListener('DOMContentLoaded', () => {
-            // Call the initialization function specific to the episode page
+            // Check if the specific initialization function exists in script.js
             if (typeof initEpisodePage === 'function') {
+                // Call the function to set up the episode page
                 initEpisodePage();
             } else {
+                // Log an error if the function is missing (helps debugging)
                 console.error("Initialization function 'initEpisodePage' not found in script.js");
-                // Display error to user if function is missing
+                // Display a user-friendly error message on the page
                 const errorDiv = document.getElementById('episode-error-message');
                 const loadingDiv = document.getElementById('episode-loading-message');
                 if(errorDiv) {
-                    errorDiv.textContent = 'Critical Error: Page script failed to load. Cannot play episode.';
+                    errorDiv.textContent = 'Critical Error: Page script failed to load. Cannot initialize player.';
                     errorDiv.classList.remove('hidden');
                 }
                  if(loadingDiv) {
+                    // Hide loading message if there's a critical error
                     loadingDiv.classList.add('hidden');
                 }
             }
