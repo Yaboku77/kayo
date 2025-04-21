@@ -4,7 +4,8 @@ const STREAMING_API_BASE_URL = 'https://api-pearl-seven-88.vercel.app'; // User-
 
 let searchTimeoutId = null; // For debouncing search input
 let featuredSwiper = null; // Swiper instance for index page slider
-let dplayerInstance = null; // DPlayer instance
+let plyrPlayer = null;     // Plyr instance for episode page video player
+let hlsInstance = null;    // HLS.js instance for handling HLS streams
 
 let currentEpisodeData = { // Structure to hold episode page state
     streamingId: null,    // ID of the anime on the streaming service
@@ -19,7 +20,7 @@ let currentEpisodeData = { // Structure to hold episode page state
     currentEpisodeNumber: '?', // Number of the current episode
     intro: null,          // { start, end } seconds for intro skip
     outro: null,          // { start, end } seconds for outro skip
-    // Subtitles handled directly in DPlayer options
+    subtitles: []         // Formatted subtitle tracks for Plyr
 };
 let skipIntroTimeout = null; // Timeout reference for intro skip button visibility
 let skipOutroTimeout = null; // Timeout reference for outro skip button visibility
@@ -447,6 +448,52 @@ function createSidebarEpisodeItemHTML(episode, streamingId, aniListId, isActive 
     `;
 }
 
+/** Formats subtitles from the API response into the structure Plyr expects. */
+function formatSubtitlesForPlyr(apiSubtitles) {
+    if (!apiSubtitles || apiSubtitles.length === 0) return [];
+    console.log("Formatting subtitles received from API:", apiSubtitles);
+    const langCodeMap = { 'english': 'en', 'spanish': 'es', 'portuguese': 'pt', 'french': 'fr', 'german': 'de', 'italian': 'it', 'russian': 'ru' /* Add more */ };
+    const formatted = apiSubtitles.map((sub, index) => {
+        // Skip "thumbnails" track if present
+        if (sub.lang?.toLowerCase() === 'thumbnails' || !sub.url) {
+            return null;
+        }
+        const langLower = sub.lang?.toLowerCase() || 'unknown';
+        // Handle complex lang strings like "Portuguese - Portuguese(Brazil)" -> "Portuguese"
+        const simpleLang = langLower.split('-')[0].trim();
+        let srclang = langCodeMap[simpleLang] || simpleLang.substring(0, 2); // Use mapped code or first 2 chars
+        const isDefault = simpleLang === 'english'; // Default English if available
+
+        return {
+            kind: 'captions',
+            label: sub.lang || `Subtitle ${index + 1}`, // Display label from API
+            srclang: srclang, // Standard language code for matching
+            src: sub.url,
+            default: isDefault
+        };
+    }).filter(track => track && track.src); // Filter out nulls and tracks without a source URL
+
+    // Ensure only one track is marked as default (Plyr prefers this)
+    let defaultSet = false;
+    formatted.forEach(track => {
+        if (track.default) {
+            if (defaultSet) {
+                track.default = false; // Unset subsequent defaults
+            } else {
+                defaultSet = true; // Mark first default as found
+            }
+        }
+    });
+    // If no English default was found, optionally make the first track default
+    if (!defaultSet && formatted.length > 0) {
+        // formatted[0].default = true; // Optional: default the first available track
+    }
+
+    console.log("Formatted Plyr tracks:", formatted);
+    return formatted;
+}
+
+
 // --- Swiper Initialization ---
 function initializeFeaturedSwiper(containerSelector = '#featured-swiper') {
     if (typeof Swiper === 'undefined') { console.error("Swiper library not loaded."); return; }
@@ -824,9 +871,9 @@ async function initAnimePage() {
     }
 }
 
-/** Initializes the Episode Player Page - Using DPlayer (Fixed Init & Events) */
+/** Initializes the Episode Player Page - Using Plyr (Fixed Init & Events) */
 async function initEpisodePage() {
-    console.log("Initializing Episode Page with DPlayer");
+    console.log("Initializing Episode Page with Plyr");
     setFooterYear();
     setupSearch();
     setupMobileMenu();
@@ -835,7 +882,8 @@ async function initEpisodePage() {
     const errorMessage = document.getElementById('episode-error-message');
     const mainContent = document.getElementById('episode-main-content');
     const playerWrapper = document.getElementById('player-wrapper');
-    const dplayerContainer = document.getElementById('dplayer-container'); // DPlayer container
+    const videoElement = document.getElementById('video-player'); // Target the <video> element
+    const playerContainer = document.getElementById('player-container'); // Container for the video element
     const episodeTitleArea = document.getElementById('episode-title-area');
     const backButton = document.getElementById('back-to-detail-button');
     const subButton = document.getElementById('sub-button');
@@ -849,25 +897,23 @@ async function initEpisodePage() {
     const skipIntroButton = document.getElementById('skip-intro-button');
     const skipOutroButton = document.getElementById('skip-outro-button');
 
-    // Check if DPlayer container exists
-    if (!dplayerContainer) {
-        console.error("DPlayer container element (#dplayer-container) not found!");
+    // Check if video element exists
+    if (!videoElement) {
+        console.error("Video element (#video-player) not found!");
         if (loadingMessage) loadingMessage.classList.add('hidden');
-        if (errorMessage) { errorMessage.textContent = "Error: Player container missing in HTML."; errorMessage.classList.remove('hidden'); }
+        if (errorMessage) { errorMessage.textContent = "Error: Player element missing in HTML."; errorMessage.classList.remove('hidden'); }
         return;
     }
-    // Check if DPlayer library is loaded
-     if (typeof DPlayer === 'undefined') {
-         console.error("DPlayer library is not loaded. Check script tags in episode.html.");
+    // Check if Plyr and Hls are loaded
+     if (typeof Plyr === 'undefined') {
+         console.error("Plyr library is not loaded. Check script tags in episode.html.");
          if (loadingMessage) loadingMessage.classList.add('hidden');
          if (errorMessage) { errorMessage.textContent = "Error: Player library failed to load."; errorMessage.classList.remove('hidden'); }
          return;
      }
-     // Check if Hls.js library is loaded (required for HLS in DPlayer)
       if (typeof Hls === 'undefined') {
           console.error("Hls.js library is not loaded. Check script tags in episode.html.");
-          // Player might still work for non-HLS, but show warning
-          if (errorMessage && !errorMessage.textContent) { // Show only if no other error
+          if (errorMessage && !errorMessage.textContent) {
               errorMessage.textContent = "Warning: HLS playback library missing, quality options may be limited.";
               errorMessage.classList.remove('hidden');
           }
@@ -885,7 +931,7 @@ async function initEpisodePage() {
         return;
     }
 
-    // --- Parse Base Episode ID ---
+    // Parse Base Episode ID
     let baseEpisodeId = initialEpisodeId;
     const lastDollarIndex = initialEpisodeId.lastIndexOf('$');
     if (lastDollarIndex > 0) {
@@ -900,7 +946,7 @@ async function initEpisodePage() {
         streamingId: streamingId, baseEpisodeId: baseEpisodeId, currentEpisodeId: initialEpisodeId, aniListId: aniListId,
         episodes: [], currentSourceData: null, selectedServer: serverSelect ? serverSelect.value : 'vidcloud',
         selectedType: initialEpisodeId.includes('$dub') ? 'dub' : 'sub', animeTitle: 'Loading...', currentEpisodeNumber: '?',
-        intro: null, outro: null,
+        intro: null, outro: null, subtitles: [] // Store formatted Plyr tracks here
     };
     console.log("Initial State:", currentEpisodeData);
 
@@ -908,22 +954,22 @@ async function initEpisodePage() {
          backButton.href = `anime.html?id=${currentEpisodeData.aniListId}`;
          backButton.onclick = (e) => { e.preventDefault(); if (document.referrer && document.referrer.includes(`anime.html?id=${currentEpisodeData.aniListId}`)) { history.back(); } else { window.location.href = `anime.html?id=${currentEpisodeData.aniListId}`; } };
     }
-    // Hide loading message now that basic checks passed
-    if(loadingMessage) loadingMessage.classList.add('hidden');
+    if(loadingMessage) loadingMessage.classList.remove('hidden');
     if(errorMessage) errorMessage.classList.add('hidden');
     if(mainContent) mainContent.classList.add('hidden'); // Keep hidden until data fetch
 
-
-    /** Loads video source, subtitles, skip times and initializes/updates DPlayer */
+    /** Loads video source, subtitles, skip times and initializes/updates Plyr */
     async function loadVideoSource(type = 'sub') {
         console.log(`Load Request: type=${type}, server=${currentEpisodeData.selectedServer}`);
         currentEpisodeData.selectedType = type;
         // Show loading state
-        if (dplayerInstance) dplayerInstance.pause();
+        if (plyrPlayer) plyrPlayer.stop(); // Use stop() for Plyr
         if (skipIntroButton) skipIntroButton.classList.remove('visible');
         if (skipOutroButton) skipOutroButton.classList.remove('visible');
         if (errorMessage) errorMessage.classList.add('hidden');
-        dplayerContainer.innerHTML = '<p class="text-center text-gray-400 p-4">Loading player...</p>'; // Placeholder
+        // Optionally add a loading indicator to the player container
+        if (playerContainer) playerContainer.style.opacity = '0.5';
+
 
         const episodeIdToFetch = `${currentEpisodeData.baseEpisodeId}$${type}`;
         console.log(`Fetching watch data for constructed ID: ${episodeIdToFetch}`);
@@ -937,8 +983,10 @@ async function initEpisodePage() {
                  if (watchData.download) {
                      console.warn(`No streaming sources found, attempting download link: ${watchData.download}`);
                      currentEpisodeData.intro = { start: 0, end: 0 }; currentEpisodeData.outro = { start: 0, end: 0 };
-                     initializeOrUpdateDPlayer(watchData.download, type, null, false); // Load download link, no subs, not HLS
+                     currentEpisodeData.subtitles = []; // No subs for download link
+                     initializeOrUpdatePlyrPlayer(watchData.download, type, [], false); // Load download link, no subs, not HLS
                      updateStreamTypeButtons();
+                     if (playerContainer) playerContainer.style.opacity = '1';
                      return;
                  }
                  throw new Error(`No sources found for ${type.toUpperCase()} on server ${currentEpisodeData.selectedServer}.`);
@@ -946,6 +994,7 @@ async function initEpisodePage() {
 
             currentEpisodeData.intro = watchData.intro || { start: 0, end: 0 };
             currentEpisodeData.outro = watchData.outro || { start: 0, end: 0 };
+            currentEpisodeData.subtitles = formatSubtitlesForPlyr(watchData.subtitles); // Format for Plyr
 
             let sourceUrl = null, isHls = false;
             const sourcesToUse = watchData.sources;
@@ -956,119 +1005,135 @@ async function initEpisodePage() {
             if (!sourceUrl) throw new Error(`Could not find a suitable video URL for ${type.toUpperCase()}.`);
             console.log(`Selected Source: ${sourceUrl} (HLS: ${isHls})`);
 
-            // Find first English subtitle URL (excluding thumbnails)
-            const firstEnglishSub = watchData.subtitles?.find(s => s.lang?.toLowerCase().includes('english') && s.lang?.toLowerCase() !== 'thumbnails');
-            const subtitleUrl = firstEnglishSub?.url || null;
-            console.log("Selected Subtitle URL for DPlayer:", subtitleUrl);
-
             updateStreamTypeButtons();
-            initializeOrUpdateDPlayer(sourceUrl, type, subtitleUrl, isHls);
+            initializeOrUpdatePlyrPlayer(sourceUrl, type, currentEpisodeData.subtitles, isHls);
 
         } catch (error) {
              console.error(`Error loading video source for ${type.toUpperCase()}:`, error);
              if (errorMessage) { errorMessage.textContent = `Failed to load video: ${error.message}`; errorMessage.classList.remove('hidden'); }
              updateStreamTypeButtons(true);
-             dplayerContainer.innerHTML = `<p class="text-center text-red-500 p-4">Failed to load player: ${error.message}</p>`;
+             if (playerContainer) playerContainer.style.opacity = '1'; // Restore opacity on error
+        } finally {
+             // Ensure opacity is restored even if something unexpected happens
+             if (playerContainer) playerContainer.style.opacity = '1';
         }
     }
 
-    /** Initializes or updates the DPlayer instance */
-    function initializeOrUpdateDPlayer(sourceUrl, type, subtitleUrl, isHls) {
-        console.log("Initializing/Updating DPlayer...");
+    /** Initializes or updates the Plyr player instance */
+    function initializeOrUpdatePlyrPlayer(sourceUrl, type, tracks = [], isHls) {
+        console.log("Initializing/Updating Plyr Player...");
 
-        // Destroy previous instance if it exists
-        if (dplayerInstance) {
+        // Destroy previous instances if they exist
+        if (plyrPlayer) {
             try {
-                // Remove event listeners before destroying if possible
-                if (dplayerInstance.video) {
-                     dplayerInstance.video.removeEventListener('timeupdate', handleTimeUpdate); // Use stored handler reference
-                }
-                dplayerInstance.destroy();
-                console.log("Previous DPlayer instance destroyed.");
-            } catch (e) {
-                console.error("Error destroying previous DPlayer instance:", e);
-            }
-            dplayerInstance = null; // Clear reference
+                // Remove event listeners previously attached to the player
+                plyrPlayer.off('timeupdate', handleTimeUpdate); // Use stored handler reference
+                plyrPlayer.destroy();
+                console.log("Previous Plyr instance destroyed.");
+            } catch (e) { console.error("Error destroying previous Plyr instance:", e); }
+            plyrPlayer = null;
+        }
+        if (hlsInstance) {
+            try {
+                hlsInstance.destroy();
+                console.log("Previous HLS instance destroyed.");
+            } catch (e) { console.error("Error destroying previous HLS instance:", e); }
+            hlsInstance = null;
         }
 
-        // Prepare DPlayer options
-        const dplayerOptions = {
-            container: dplayerContainer,
-            theme: '#7c3aed', // Purple theme color
-            loop: false,
-            lang: 'en', // UI language
-            screenshot: true,
-            hotkey: true,
-            preload: 'auto',
-            autoplay: false, // Autoplay often blocked by browsers
-            video: {
-                url: sourceUrl,
-                type: isHls && typeof Hls !== 'undefined' ? 'hls' : 'auto', // Use 'hls' if HLS.js is loaded, otherwise 'auto'
-                // pic: '', // Optional poster image
-                // thumbnails: '', // Optional thumbnails VTT
-            },
-            subtitle: subtitleUrl ? {
-                url: subtitleUrl,
-                type: 'webvtt',
-                fontSize: '20px',
-                bottom: '10%',
-                color: '#FFF',
-            } : undefined, // Only add subtitle object if URL exists
-            contextmenu: [ { text: 'AniStream', link: 'index.html' } ],
-            // Add more DPlayer options if needed
+        // Ensure video element is clean (important if not destroying player fully)
+        videoElement.innerHTML = ''; // Clear any previous tracks set via HTML
+
+        // Plyr options
+        const plyrOptions = {
+            debug: false, // Enable for verbose console logs from Plyr
+            title: `${currentEpisodeData.animeTitle} - Ep ${currentEpisodeData.currentEpisodeNumber} (${type.toUpperCase()})`,
+            controls: [ 'play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'captions', 'settings', 'pip', 'airplay', 'fullscreen' ],
+            settings: ['captions', 'quality', 'speed', 'loop'],
+            captions: { active: true, language: 'auto', update: true }, // Enable captions, try to default based on browser
+            tooltips: { controls: true, seek: true },
+            keyboard: { focused: true, global: true },
+            // Subtitles are passed via the 'tracks' array in the source config for Plyr when setting source
         };
-
-        // If using HLS, provide hls.js instance to DPlayer if needed (check DPlayer docs for specific version)
-        // Some versions might pick up global Hls automatically when type is 'hls'
-        // If explicit configuration is needed:
-        // if (isHls && typeof Hls !== 'undefined') {
-        //     dplayerOptions.video.customType = {
-        //         hls: (video, player) => {
-        //             const hls = new Hls();
-        //             hls.loadSource(sourceUrl);
-        //             hls.attachMedia(video);
-        //             window.hls = hls; // Make accessible if needed
-        //             hls.on(Hls.Events.ERROR, (event, data) => { console.error('HLS Error in DPlayer:', data); });
-        //         }
-        //     };
-        // }
-
-        console.log("DPlayer Options:", dplayerOptions);
+        console.log("Plyr Options:", plyrOptions);
+        console.log("Tracks for Plyr:", tracks);
 
         try {
-            // Create new DPlayer instance
-            dplayerInstance = new DPlayer(dplayerOptions);
-            console.log("DPlayer instance created.");
+            if (isHls && typeof Hls !== 'undefined' && Hls.isSupported()) {
+                console.log("Setting up Plyr with HLS.js...");
+                hlsInstance = new Hls({
+                    // HLS config options
+                    // capLevelToPlayerSize: true, // Let Plyr handle quality switching UI
+                    // Other HLS options...
+                });
 
-            // Attach event listeners for skip buttons etc. AFTER instance created
-            setupSkipButtons(); // Setup skip buttons now player exists
+                // --- Plyr HLS Setup ---
+                // Create Plyr instance first
+                plyrPlayer = new Plyr(videoElement, plyrOptions);
+                window.player = plyrPlayer; // For debugging
 
-            // Optional: Listen for DPlayer events
-            dplayerInstance.on('error', () => {
-                 console.error('DPlayer reported an error.');
-                 if (errorMessage && !errorMessage.textContent.includes('Failed to load')) {
-                     errorMessage.textContent = 'Video player encountered an error.';
-                     errorMessage.classList.remove('hidden');
-                 }
-            });
-             dplayerInstance.on('loadeddata', () => {
-                 console.log('DPlayer loadeddata event fired.');
-                 // Can potentially re-run setupSkipButtons here if needed, e.g., if duration wasn't known initially
-                 // setupSkipButtons();
-             });
-             dplayerInstance.on('canplay', () => {
-                 console.log('DPlayer canplay event fired.');
-             });
-             dplayerInstance.on('subtitle_show', () => console.log('DPlayer subtitle_show'));
-             dplayerInstance.on('subtitle_hide', () => console.log('DPlayer subtitle_hide'));
-             dplayerInstance.on('quality_start', (q) => console.log('DPlayer quality_start', q));
-             dplayerInstance.on('quality_end', () => console.log('DPlayer quality_end'));
+                // Then load HLS source and attach Plyr listeners
+                hlsInstance.loadSource(sourceUrl);
+                hlsInstance.attachMedia(videoElement);
+                window.hls = hlsInstance; // For debugging
 
+                // Handle HLS errors
+                hlsInstance.on(Hls.Events.ERROR, (event, data) => {
+                    console.error('HLS Error:', data);
+                    if (data.fatal) {
+                        switch (data.type) {
+                            case Hls.ErrorTypes.NETWORK_ERROR:
+                                console.warn('HLS network error - trying to recover');
+                                hlsInstance.startLoad(); // or hls.recoverMediaError() ?
+                                break;
+                            case Hls.ErrorTypes.MEDIA_ERROR:
+                                console.warn('HLS media error - trying to recover');
+                                hlsInstance.recoverMediaError();
+                                break;
+                            default:
+                                console.error('Unrecoverable HLS error');
+                                if (errorMessage) { errorMessage.textContent = `Playback Error (HLS: ${data.details})`; errorMessage.classList.remove('hidden'); }
+                                // Maybe destroy HLS?
+                                // hlsInstance.destroy();
+                                break;
+                        }
+                    }
+                });
 
-        } catch (error) {
-            console.error("!!! CRITICAL ERROR INITIALIZING DPLAYER !!!", error);
-            if (errorMessage) { errorMessage.textContent = `Failed to initialize player: ${error.message}`; errorMessage.classList.remove('hidden'); }
-            dplayerContainer.innerHTML = `<p class="text-center text-red-500 p-4">Failed to initialize player: ${error.message}</p>`;
+                // Set tracks using Plyr's API after initialization
+                plyrPlayer.source = {
+                    type: 'video',
+                    title: plyrOptions.title,
+                    sources: [{ src: sourceUrl, type: 'application/x-mpegURL' }],
+                    tracks: tracks
+                };
+                console.log("Plyr initialized with HLS source and tracks set via API.");
+
+            } else {
+                console.log("Setting up Plyr with native source...");
+                // For non-HLS or if HLS.js is not supported
+                 plyrOptions.source = { // Set source directly in options for native
+                     type: 'video',
+                     title: plyrOptions.title,
+                     sources: [{ src: sourceUrl }], // Let Plyr determine type
+                     tracks: tracks
+                 };
+                 plyrPlayer = new Plyr(videoElement, plyrOptions);
+                 window.player = plyrPlayer; // For debugging
+                 console.log("Plyr initialized with native source.");
+            }
+
+            // Attach common Plyr event listeners
+            plyrPlayer.on('ready', () => { console.log("Plyr player ready event fired."); setupSkipButtons(); });
+            plyrPlayer.on('error', (event) => { console.error("Plyr Player Error Event:", event); if(errorMessage){ errorMessage.textContent = `Video Playback Error.`; errorMessage.classList.remove('hidden'); } });
+            plyrPlayer.on('captionsenabled', () => console.log('Plyr captions enabled'));
+            plyrPlayer.on('captionsdisabled', () => console.log('Plyr captions disabled'));
+            plyrPlayer.on('languagechange', () => console.log('Plyr language changed'));
+            plyrPlayer.on('qualitychange', (event) => console.log('Plyr quality change:', event.detail.quality));
+
+        } catch (initError) {
+             console.error("!!! CRITICAL ERROR INITIALIZING PLYR !!!", initError);
+             if (errorMessage) { errorMessage.textContent = `Failed to initialize player: ${initError.message}`; errorMessage.classList.remove('hidden'); }
         }
     }
 
@@ -1086,11 +1151,11 @@ async function initEpisodePage() {
     let handleSkipIntro;
     let handleSkipOutro;
 
-    /** Sets up skip intro/outro buttons for DPlayer */
+    /** Sets up skip intro/outro buttons for Plyr */
     function setupSkipButtons() {
-        console.log("Setting up skip buttons for DPlayer...");
-        if (!dplayerInstance || !dplayerInstance.video || !skipIntroButton || !skipOutroButton) {
-            console.warn("Skip buttons or DPlayer instance/video not ready.");
+        console.log("Setting up skip buttons for Plyr...");
+        if (!plyrPlayer || !skipIntroButton || !skipOutroButton) {
+            console.warn("Skip buttons or Plyr instance not ready.");
             return;
         }
 
@@ -1099,9 +1164,8 @@ async function initEpisodePage() {
         let introVisible = false, outroVisible = false;
 
         // --- Remove previous listeners using the correct method ---
-        // DPlayer uses .on() and .off() OR standard add/remove on .video
         if (handleTimeUpdate) { // Check if handler exists from previous setup
-             dplayerInstance.video.removeEventListener('timeupdate', handleTimeUpdate);
+             plyrPlayer.off('timeupdate', handleTimeUpdate); // Use Plyr's off method
              console.log("Removed previous timeupdate listener.");
         }
         clearTimeout(skipIntroTimeout); clearTimeout(skipOutroTimeout);
@@ -1111,10 +1175,9 @@ async function initEpisodePage() {
         // --- End remove previous ---
 
         handleTimeUpdate = () => { // Assign to the outer scope variable
-            if (!dplayerInstance || !dplayerInstance.video || dplayerInstance.video.paused) return;
-            const currentTime = dplayerInstance.video.currentTime;
-            const duration = dplayerInstance.video.duration;
-            if (!duration || duration === Infinity) return;
+            if (!plyrPlayer || plyrPlayer.paused || !plyrPlayer.duration) return; // Check if playing & duration known
+            const currentTime = plyrPlayer.currentTime;
+            const duration = plyrPlayer.duration;
 
             // Show/Hide Intro Button
             if (intro && intro.end > 0 && currentTime >= intro.start && currentTime < intro.end) {
@@ -1128,26 +1191,25 @@ async function initEpisodePage() {
         };
 
         handleSkipIntro = () => { // Assign to the outer scope variable
-            if (dplayerInstance && intro?.end > 0) {
-                 dplayerInstance.seek(intro.end);
+            if (plyrPlayer && intro?.end > 0) {
+                 plyrPlayer.seek(intro.end); // Use Plyr's seek method
                  skipIntroButton.classList.remove('visible'); introVisible = false;
             }
         };
 
         handleSkipOutro = () => { // Assign to the outer scope variable
-            if (dplayerInstance && outro?.end > 0) {
-                 dplayerInstance.seek(outro.end);
+            if (plyrPlayer && outro?.end > 0) {
+                 plyrPlayer.seek(outro.end);
                  skipOutroButton.classList.remove('visible'); outroVisible = false;
-            } else if (dplayerInstance && dplayerInstance.video.duration) {
-                 dplayerInstance.seek(dplayerInstance.video.duration); // Seek to end if no specific outro end time
+            } else if (plyrPlayer && plyrPlayer.duration) {
+                 plyrPlayer.seek(plyrPlayer.duration); // Seek to end if no specific outro end time
             }
         };
 
         // Attach listeners only if times are valid
         if ((intro && intro.end > 0) || (outro && outro.start > 0)) {
-             console.log("Attaching DPlayer timeupdate listener for skip buttons.");
-             // Use standard addEventListener on the video element
-             dplayerInstance.video.addEventListener('timeupdate', handleTimeUpdate);
+             console.log("Attaching Plyr timeupdate listener for skip buttons.");
+             plyrPlayer.on('timeupdate', handleTimeUpdate); // Use Plyr's event binding
         } else { console.log("No valid intro/outro times, skip buttons disabled."); }
 
         if (intro && intro.end > 0) skipIntroButton.addEventListener('click', handleSkipIntro);
