@@ -4,7 +4,7 @@ const STREAMING_API_BASE_URL = 'https://api-pearl-seven-88.vercel.app'; // User-
 
 let searchTimeoutId = null; // For debouncing search input
 let featuredSwiper = null; // Swiper instance for index page slider
-let dplayerInstance = null; // NEW: DPlayer instance
+let dplayerInstance = null; // DPlayer instance
 
 let currentEpisodeData = { // Structure to hold episode page state
     streamingId: null,    // ID of the anime on the streaming service
@@ -824,7 +824,7 @@ async function initAnimePage() {
     }
 }
 
-/** Initializes the Episode Player Page - Using DPlayer */
+/** Initializes the Episode Player Page - Using DPlayer (Fixed Init & Events) */
 async function initEpisodePage() {
     console.log("Initializing Episode Page with DPlayer");
     setFooterYear();
@@ -873,7 +873,6 @@ async function initEpisodePage() {
           }
       }
 
-
     const urlParams = getUrlParams();
     const initialEpisodeId = urlParams.episodeId;
     const aniListId = urlParams.aniListId;
@@ -886,7 +885,7 @@ async function initEpisodePage() {
         return;
     }
 
-    // Parse Base Episode ID
+    // --- Parse Base Episode ID ---
     let baseEpisodeId = initialEpisodeId;
     const lastDollarIndex = initialEpisodeId.lastIndexOf('$');
     if (lastDollarIndex > 0) {
@@ -909,16 +908,18 @@ async function initEpisodePage() {
          backButton.href = `anime.html?id=${currentEpisodeData.aniListId}`;
          backButton.onclick = (e) => { e.preventDefault(); if (document.referrer && document.referrer.includes(`anime.html?id=${currentEpisodeData.aniListId}`)) { history.back(); } else { window.location.href = `anime.html?id=${currentEpisodeData.aniListId}`; } };
     }
-    if(loadingMessage) loadingMessage.classList.remove('hidden');
+    // Hide loading message now that basic checks passed
+    if(loadingMessage) loadingMessage.classList.add('hidden');
     if(errorMessage) errorMessage.classList.add('hidden');
     if(mainContent) mainContent.classList.add('hidden'); // Keep hidden until data fetch
+
 
     /** Loads video source, subtitles, skip times and initializes/updates DPlayer */
     async function loadVideoSource(type = 'sub') {
         console.log(`Load Request: type=${type}, server=${currentEpisodeData.selectedServer}`);
         currentEpisodeData.selectedType = type;
         // Show loading state
-        if (dplayerInstance) dplayerInstance.pause(); // Pause current playback if exists
+        if (dplayerInstance) dplayerInstance.pause();
         if (skipIntroButton) skipIntroButton.classList.remove('visible');
         if (skipOutroButton) skipOutroButton.classList.remove('visible');
         if (errorMessage) errorMessage.classList.add('hidden');
@@ -936,7 +937,7 @@ async function initEpisodePage() {
                  if (watchData.download) {
                      console.warn(`No streaming sources found, attempting download link: ${watchData.download}`);
                      currentEpisodeData.intro = { start: 0, end: 0 }; currentEpisodeData.outro = { start: 0, end: 0 };
-                     initializeOrUpdateDPlayer(watchData.download, type, []); // Load download link, no subs
+                     initializeOrUpdateDPlayer(watchData.download, type, null, false); // Load download link, no subs, not HLS
                      updateStreamTypeButtons();
                      return;
                  }
@@ -955,10 +956,10 @@ async function initEpisodePage() {
             if (!sourceUrl) throw new Error(`Could not find a suitable video URL for ${type.toUpperCase()}.`);
             console.log(`Selected Source: ${sourceUrl} (HLS: ${isHls})`);
 
-            // Find first English subtitle URL
+            // Find first English subtitle URL (excluding thumbnails)
             const firstEnglishSub = watchData.subtitles?.find(s => s.lang?.toLowerCase().includes('english') && s.lang?.toLowerCase() !== 'thumbnails');
             const subtitleUrl = firstEnglishSub?.url || null;
-            console.log("Selected Subtitle URL:", subtitleUrl);
+            console.log("Selected Subtitle URL for DPlayer:", subtitleUrl);
 
             updateStreamTypeButtons();
             initializeOrUpdateDPlayer(sourceUrl, type, subtitleUrl, isHls);
@@ -967,7 +968,7 @@ async function initEpisodePage() {
              console.error(`Error loading video source for ${type.toUpperCase()}:`, error);
              if (errorMessage) { errorMessage.textContent = `Failed to load video: ${error.message}`; errorMessage.classList.remove('hidden'); }
              updateStreamTypeButtons(true);
-             dplayerContainer.innerHTML = `<p class="text-center text-red-500 p-4">Failed to load player: ${error.message}</p>`; // Show error in player area
+             dplayerContainer.innerHTML = `<p class="text-center text-red-500 p-4">Failed to load player: ${error.message}</p>`;
         }
     }
 
@@ -978,6 +979,10 @@ async function initEpisodePage() {
         // Destroy previous instance if it exists
         if (dplayerInstance) {
             try {
+                // Remove event listeners before destroying if possible
+                if (dplayerInstance.video) {
+                     dplayerInstance.video.removeEventListener('timeupdate', handleTimeUpdate); // Use stored handler reference
+                }
                 dplayerInstance.destroy();
                 console.log("Previous DPlayer instance destroyed.");
             } catch (e) {
@@ -998,26 +1003,9 @@ async function initEpisodePage() {
             autoplay: false, // Autoplay often blocked by browsers
             video: {
                 url: sourceUrl,
-                type: isHls ? 'hls' : 'auto', // Use 'hls' type if HLS.js is loaded
-                // If 'hls' type doesn't work automatically with global Hls, use customType:
-                // type: 'customHls',
-                // customType: {
-                //     customHls: (video, player) => {
-                //         if (typeof Hls !== 'undefined' && Hls.isSupported()) {
-                //             console.log('DPlayer using custom Hls.js type');
-                //             const hls = new Hls();
-                //             hls.loadSource(sourceUrl); // Use sourceUrl directly
-                //             hls.attachMedia(video);
-                //             // Optional: Handle HLS errors
-                //             hls.on(Hls.Events.ERROR, (event, data) => { console.error('HLS Error in DPlayer:', data); });
-                //         } else {
-                //             console.warn('Hls.js not found or not supported for custom DPlayer type.');
-                //             video.src = sourceUrl; // Fallback to native
-                //         }
-                //     },
-                // },
-                pic: '', // Optional poster image
-                thumbnails: '', // Optional thumbnails VTT
+                type: isHls && typeof Hls !== 'undefined' ? 'hls' : 'auto', // Use 'hls' if HLS.js is loaded, otherwise 'auto'
+                // pic: '', // Optional poster image
+                // thumbnails: '', // Optional thumbnails VTT
             },
             subtitle: subtitleUrl ? {
                 url: subtitleUrl,
@@ -1026,11 +1014,24 @@ async function initEpisodePage() {
                 bottom: '10%',
                 color: '#FFF',
             } : undefined, // Only add subtitle object if URL exists
-            contextmenu: [ // Example custom context menu items
-                { text: 'AniStream', link: 'index.html' },
-            ],
+            contextmenu: [ { text: 'AniStream', link: 'index.html' } ],
             // Add more DPlayer options if needed
         };
+
+        // If using HLS, provide hls.js instance to DPlayer if needed (check DPlayer docs for specific version)
+        // Some versions might pick up global Hls automatically when type is 'hls'
+        // If explicit configuration is needed:
+        // if (isHls && typeof Hls !== 'undefined') {
+        //     dplayerOptions.video.customType = {
+        //         hls: (video, player) => {
+        //             const hls = new Hls();
+        //             hls.loadSource(sourceUrl);
+        //             hls.attachMedia(video);
+        //             window.hls = hls; // Make accessible if needed
+        //             hls.on(Hls.Events.ERROR, (event, data) => { console.error('HLS Error in DPlayer:', data); });
+        //         }
+        //     };
+        // }
 
         console.log("DPlayer Options:", dplayerOptions);
 
@@ -1039,24 +1040,29 @@ async function initEpisodePage() {
             dplayerInstance = new DPlayer(dplayerOptions);
             console.log("DPlayer instance created.");
 
-            // Attach event listeners for skip buttons etc.
+            // Attach event listeners for skip buttons etc. AFTER instance created
             setupSkipButtons(); // Setup skip buttons now player exists
 
             // Optional: Listen for DPlayer events
             dplayerInstance.on('error', () => {
                  console.error('DPlayer reported an error.');
-                 if (errorMessage && !errorMessage.textContent.includes('Failed to load')) { // Avoid duplicate messages
+                 if (errorMessage && !errorMessage.textContent.includes('Failed to load')) {
                      errorMessage.textContent = 'Video player encountered an error.';
                      errorMessage.classList.remove('hidden');
                  }
             });
              dplayerInstance.on('loadeddata', () => {
                  console.log('DPlayer loadeddata event fired.');
-                 // Can potentially re-run setupSkipButtons here if needed
+                 // Can potentially re-run setupSkipButtons here if needed, e.g., if duration wasn't known initially
+                 // setupSkipButtons();
              });
              dplayerInstance.on('canplay', () => {
                  console.log('DPlayer canplay event fired.');
              });
+             dplayerInstance.on('subtitle_show', () => console.log('DPlayer subtitle_show'));
+             dplayerInstance.on('subtitle_hide', () => console.log('DPlayer subtitle_hide'));
+             dplayerInstance.on('quality_start', (q) => console.log('DPlayer quality_start', q));
+             dplayerInstance.on('quality_end', () => console.log('DPlayer quality_end'));
 
 
         } catch (error) {
@@ -1067,7 +1073,7 @@ async function initEpisodePage() {
     }
 
 
-    /** Updates SUB/DUB button states */
+    /** Updates SUB/DUB button states - simplified */
     function updateStreamTypeButtons(isError = false) {
         const subAvailable = !isError; const dubAvailable = !isError; // Simplified check
         console.log(`Updating buttons: SUB=${subAvailable}, DUB=${dubAvailable}, Selected=${currentEpisodeData.selectedType}`);
@@ -1075,10 +1081,14 @@ async function initEpisodePage() {
         if(dubButton) { dubButton.disabled = !dubAvailable; dubButton.classList.toggle('bg-purple-600', currentEpisodeData.selectedType === 'dub' && dubAvailable); dubButton.classList.toggle('text-white', currentEpisodeData.selectedType === 'dub' && dubAvailable); dubButton.classList.toggle('bg-gray-700', currentEpisodeData.selectedType !== 'dub' || !dubAvailable); dubButton.classList.toggle('text-gray-200', currentEpisodeData.selectedType !== 'dub' || !dubAvailable); dubButton.classList.toggle('opacity-50', !dubAvailable); dubButton.classList.toggle('cursor-not-allowed', !dubAvailable); }
     }
 
+    // Define these handlers in a scope accessible by setupSkipButtons and the event listeners
+    let handleTimeUpdate;
+    let handleSkipIntro;
+    let handleSkipOutro;
+
     /** Sets up skip intro/outro buttons for DPlayer */
     function setupSkipButtons() {
         console.log("Setting up skip buttons for DPlayer...");
-        // Ensure player instance and its video element exist
         if (!dplayerInstance || !dplayerInstance.video || !skipIntroButton || !skipOutroButton) {
             console.warn("Skip buttons or DPlayer instance/video not ready.");
             return;
@@ -1088,18 +1098,23 @@ async function initEpisodePage() {
         const outro = currentEpisodeData.outro;
         let introVisible = false, outroVisible = false;
 
-        // Clear previous listeners/timeouts
-        dplayerInstance.off('timeupdate', handleTimeUpdate); // Use DPlayer's event removal
+        // --- Remove previous listeners using the correct method ---
+        // DPlayer uses .on() and .off() OR standard add/remove on .video
+        if (handleTimeUpdate) { // Check if handler exists from previous setup
+             dplayerInstance.video.removeEventListener('timeupdate', handleTimeUpdate);
+             console.log("Removed previous timeupdate listener.");
+        }
         clearTimeout(skipIntroTimeout); clearTimeout(skipOutroTimeout);
         skipIntroButton.removeEventListener('click', handleSkipIntro);
         skipOutroButton.removeEventListener('click', handleSkipOutro);
-        skipIntroButton.classList.remove('visible'); skipOutroButton.classList.remove('visible');
+        skipIntroButton.classList.remove('visible'); skipOutroButton.classList.remove('visible'); // Reset visibility
+        // --- End remove previous ---
 
-        function handleTimeUpdate() {
-            if (!dplayerInstance || !dplayerInstance.video || dplayerInstance.video.paused) return; // Check if playing
+        handleTimeUpdate = () => { // Assign to the outer scope variable
+            if (!dplayerInstance || !dplayerInstance.video || dplayerInstance.video.paused) return;
             const currentTime = dplayerInstance.video.currentTime;
             const duration = dplayerInstance.video.duration;
-            if (!duration || duration === Infinity) return; // Need valid duration
+            if (!duration || duration === Infinity) return;
 
             // Show/Hide Intro Button
             if (intro && intro.end > 0 && currentTime >= intro.start && currentTime < intro.end) {
@@ -1110,15 +1125,31 @@ async function initEpisodePage() {
             if (outro && outro.start > 0 && currentTime >= outro.start && currentTime < (outro.end || duration)) {
                  if (!outroVisible) { skipOutroButton.classList.add('visible'); outroVisible = true; }
             } else if (outroVisible) { skipOutroButton.classList.remove('visible'); outroVisible = false; }
-        }
-        function handleSkipIntro() { if (dplayerInstance && intro?.end > 0) { dplayerInstance.seek(intro.end); skipIntroButton.classList.remove('visible'); introVisible = false; } }
-        function handleSkipOutro() { if (dplayerInstance && outro?.end > 0) { dplayerInstance.seek(outro.end); skipOutroButton.classList.remove('visible'); outroVisible = false; } else if (dplayerInstance && dplayerInstance.video.duration) { dplayerInstance.seek(dplayerInstance.video.duration); } }
+        };
+
+        handleSkipIntro = () => { // Assign to the outer scope variable
+            if (dplayerInstance && intro?.end > 0) {
+                 dplayerInstance.seek(intro.end);
+                 skipIntroButton.classList.remove('visible'); introVisible = false;
+            }
+        };
+
+        handleSkipOutro = () => { // Assign to the outer scope variable
+            if (dplayerInstance && outro?.end > 0) {
+                 dplayerInstance.seek(outro.end);
+                 skipOutroButton.classList.remove('visible'); outroVisible = false;
+            } else if (dplayerInstance && dplayerInstance.video.duration) {
+                 dplayerInstance.seek(dplayerInstance.video.duration); // Seek to end if no specific outro end time
+            }
+        };
 
         // Attach listeners only if times are valid
         if ((intro && intro.end > 0) || (outro && outro.start > 0)) {
              console.log("Attaching DPlayer timeupdate listener for skip buttons.");
-             dplayerInstance.on('timeupdate', handleTimeUpdate); // Use DPlayer's event binding
+             // Use standard addEventListener on the video element
+             dplayerInstance.video.addEventListener('timeupdate', handleTimeUpdate);
         } else { console.log("No valid intro/outro times, skip buttons disabled."); }
+
         if (intro && intro.end > 0) skipIntroButton.addEventListener('click', handleSkipIntro);
         if (outro && outro.start > 0) skipOutroButton.addEventListener('click', handleSkipOutro);
         console.log("Skip buttons setup complete.");
