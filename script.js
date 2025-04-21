@@ -4,7 +4,7 @@ const STREAMING_API_BASE_URL = 'https://api-pearl-seven-88.vercel.app'; // User-
 
 let searchTimeoutId = null; // For debouncing search input
 let featuredSwiper = null; // Swiper instance for index page slider
-let vidstackPlayer = null; // NEW: Reference to the Vidstack player element
+let vidstackPlayer = null; // Reference to the Vidstack player element
 
 let currentEpisodeData = { // Structure to hold episode page state
     streamingId: null,    // ID of the anime on the streaming service
@@ -19,7 +19,7 @@ let currentEpisodeData = { // Structure to hold episode page state
     currentEpisodeNumber: '?', // Number of the current episode
     intro: null,          // { start, end } seconds for intro skip
     outro: null,          // { start, end } seconds for outro skip
-    // Subtitles are handled by adding <track> elements directly
+    // subtitles are handled by adding <track> elements directly
 };
 let skipIntroTimeout = null; // Timeout reference for intro skip button visibility
 let skipOutroTimeout = null; // Timeout reference for outro skip button visibility
@@ -774,24 +774,18 @@ async function initAnimePage() {
                     const potentialMatches = searchResults.filter(result => {
                         const resultType = result.type;
                         const resultYear = result.releaseDate ? parseInt(result.releaseDate) : null;
-                        // Allow fuzzy matching for format (e.g., "TV Series" contains "TV")
                         const formatMatch = !aniListFormatMapped || !resultType || resultType.includes(aniListFormatMapped) || aniListFormatMapped.includes(resultType);
                         const yearMatch = !aniListYear || !resultYear || resultYear === aniListYear;
-                        // console.log(`Comparing: AL=[${aniListFormatMapped}, ${aniListYear}] vs SR=[${resultType}, ${resultYear}] -> FormatMatch=${formatMatch}, YearMatch=${yearMatch}`);
                         return formatMatch && yearMatch;
                     });
                     console.log(`Found ${potentialMatches.length} potential matches after filtering.`);
 
                     if (potentialMatches.length === 1) { bestMatch = potentialMatches[0]; }
                     else if (potentialMatches.length > 1) {
-                         // Prioritize exact title match if multiple format/year matches found
                          const exactTitleMatch = potentialMatches.find(p => p.title.toLowerCase() === (aniListMedia.title.english?.toLowerCase() || '') || p.title.toLowerCase() === (aniListMedia.title.romaji?.toLowerCase() || ''));
                          bestMatch = exactTitleMatch || potentialMatches[0];
-                         console.warn(exactTitleMatch ? "Found exact title match among potentials." : "Multiple matches found after filtering, falling back to the first potential match.");
-                    } else {
-                        // If filtering removed all results, throw error.
-                        throw new Error(`Could not find a reliable match on the streaming service. (Format/Year mismatch? AL: ${aniListFormatMapped}/${aniListYear})`);
-                    }
+                         console.warn(exactTitleMatch ? "Found exact title match." : "Multiple matches, falling back to first potential.");
+                    } else { throw new Error(`Could not find a reliable match (Format/Year mismatch? AL: ${aniListFormatMapped}/${aniListYear})`); }
                     console.log("Selected match from streaming service:", bestMatch);
 
                     const streamingId = bestMatch?.id;
@@ -805,17 +799,10 @@ async function initAnimePage() {
                             if(detailEpisodesError) detailEpisodesError.classList.add('hidden');
                             if(detailEpisodesListContainer) detailEpisodesListContainer.classList.remove('hidden');
                         } else {
-                            // Handle cases like movies or anime with no episodes listed yet
-                            if (streamingInfo && (!streamingInfo.episodes || streamingInfo.episodes.length === 0)) {
-                                 console.log("Streaming info found, but no episodes listed (maybe a movie or not released yet?).");
-                                 throw new Error('No episodes found for this entry on the streaming service.');
-                             } else {
-                                throw new Error('Could not fetch episode details from streaming service.');
-                             }
+                            if (streamingInfo && (!streamingInfo.episodes || streamingInfo.episodes.length === 0)) { throw new Error('No episodes found for this entry on streaming service.'); }
+                            else { throw new Error('Could not fetch episode details from streaming service.'); }
                         }
-                    } else {
-                        throw new Error('Failed to identify a valid streaming ID for the anime.');
-                    }
+                    } else { throw new Error('Failed to identify a valid streaming ID.'); }
                 } catch (episodeError) { // Catch errors specific to episode fetching/matching
                     console.error("Error fetching/displaying episodes:", episodeError);
                     if(detailEpisodesLoading) detailEpisodesLoading.classList.add('hidden');
@@ -837,7 +824,7 @@ async function initAnimePage() {
     }
 }
 
-/** Initializes the Episode Player Page - Using Vidstack */
+/** Initializes the Episode Player Page - Using Vidstack (Fixed Init Timing) */
 async function initEpisodePage() {
     console.log("Initializing Episode Page with Vidstack");
     setFooterYear();
@@ -848,12 +835,6 @@ async function initEpisodePage() {
     const errorMessage = document.getElementById('episode-error-message');
     const mainContent = document.getElementById('episode-main-content');
     const playerWrapper = document.getElementById('player-wrapper');
-    // Get Vidstack player element by ID
-    vidstackPlayer = document.getElementById('vidstack-player');
-    const playerOutlet = vidstackPlayer?.querySelector('media-outlet'); // Find the outlet for tracks
-
-    // const playerOverlay = document.getElementById('player-overlay'); // Overlay might not be needed with Vidstack's built-in states
-    // const playerOverlayMessage = document.getElementById('player-overlay-message');
     const episodeTitleArea = document.getElementById('episode-title-area');
     const backButton = document.getElementById('back-to-detail-button');
     const subButton = document.getElementById('sub-button');
@@ -867,14 +848,7 @@ async function initEpisodePage() {
     const skipIntroButton = document.getElementById('skip-intro-button');
     const skipOutroButton = document.getElementById('skip-outro-button');
 
-    // Check if Vidstack player element exists
-    if (!vidstackPlayer || !playerOutlet) {
-        console.error("Vidstack player element (<media-player id='vidstack-player'>) or <media-outlet> not found!");
-        if (loadingMessage) loadingMessage.classList.add('hidden');
-        if (errorMessage) { errorMessage.textContent = "Error: Player element failed to load. Ensure Vidstack components are loaded correctly."; errorMessage.classList.remove('hidden'); }
-        return;
-    }
-
+    // Get URL Params first
     const urlParams = getUrlParams();
     const initialEpisodeId = urlParams.episodeId; // Get the full ID from URL (e.g., ...$sub)
     const aniListId = urlParams.aniListId;
@@ -883,7 +857,7 @@ async function initEpisodePage() {
     if (!streamingId || !initialEpisodeId || !aniListId) {
         console.error("Missing required IDs (streamingId, episodeId, aniListId) in URL.");
         if (loadingMessage) loadingMessage.classList.add('hidden');
-        if (errorMessage) { errorMessage.textContent = "Error: Missing required information to load this episode."; errorMessage.classList.remove('hidden'); }
+        if (errorMessage) { errorMessage.textContent = "Error: Missing required information."; errorMessage.classList.remove('hidden'); }
         return;
     }
 
@@ -908,255 +882,257 @@ async function initEpisodePage() {
 
     // Reset state on page load
     currentEpisodeData = {
-        streamingId: streamingId,
-        baseEpisodeId: baseEpisodeId, // Store the parsed base ID
-        currentEpisodeId: initialEpisodeId, // Store the original full ID
-        aniListId: aniListId,
-        episodes: [],
-        currentSourceData: null,
-        selectedServer: serverSelect ? serverSelect.value : 'vidcloud',
-        selectedType: initialEpisodeId.includes('$dub') ? 'dub' : 'sub', // Default type based on initial URL suffix
-        animeTitle: 'Loading...',
-        currentEpisodeNumber: '?',
-        intro: null,
-        outro: null,
-        // subtitles handled via tracks
+        streamingId: streamingId, baseEpisodeId: baseEpisodeId, currentEpisodeId: initialEpisodeId, aniListId: aniListId,
+        episodes: [], currentSourceData: null, selectedServer: serverSelect ? serverSelect.value : 'vidcloud',
+        selectedType: initialEpisodeId.includes('$dub') ? 'dub' : 'sub', animeTitle: 'Loading...', currentEpisodeNumber: '?',
+        intro: null, outro: null,
     };
     console.log("Initial State:", currentEpisodeData);
-
 
     if (backButton && currentEpisodeData.aniListId) {
          backButton.href = `anime.html?id=${currentEpisodeData.aniListId}`;
          backButton.onclick = (e) => { e.preventDefault(); if (document.referrer && document.referrer.includes(`anime.html?id=${currentEpisodeData.aniListId}`)) { history.back(); } else { window.location.href = `anime.html?id=${currentEpisodeData.aniListId}`; } };
     }
-    if(loadingMessage) loadingMessage.classList.remove('hidden');
-    if(errorMessage) errorMessage.classList.add('hidden');
-    if(mainContent) mainContent.classList.add('hidden'); // Hide main content until ready
+    // Don't hide loading yet, wait for player definition
 
-    /** Loads video source, subtitles, skip times for Vidstack */
-    async function loadVideoSource(type = 'sub') {
-        console.log(`Load Request: type=${type}, server=${currentEpisodeData.selectedServer}`);
-        currentEpisodeData.selectedType = type; // Update state immediately
-        // Show loading state (e.g., disable buttons, show spinner)
-        // Vidstack has built-in loading indicators, so custom overlay might be less needed
-        if (vidstackPlayer) vidstackPlayer.pause(); // Pause current playback
-        if (skipIntroButton) skipIntroButton.classList.remove('visible');
-        if (skipOutroButton) skipOutroButton.classList.remove('visible');
-        if (errorMessage) errorMessage.classList.add('hidden'); // Hide previous errors
+    // --- Wait for <media-player> element to be defined ---
+    customElements.whenDefined('media-player').then(async () => {
+        console.log("media-player element defined.");
+        // Now it's safe to get the player element and its outlet
+        vidstackPlayer = document.getElementById('vidstack-player'); // Assign to global variable
+        const playerOutlet = vidstackPlayer?.querySelector('media-outlet');
 
-        // Construct the correct Episode ID to fetch ($sub or $dub)
-        const episodeIdToFetch = `${currentEpisodeData.baseEpisodeId}$${type}`;
-        console.log(`Fetching watch data for constructed ID: ${episodeIdToFetch}`);
-
-        try {
-            const watchData = await fetchEpisodeWatchData(episodeIdToFetch, currentEpisodeData.selectedServer);
-            currentEpisodeData.currentSourceData = watchData; // Store full response
-
-            if (!watchData) throw new Error(`Failed to fetch watch data for ${type.toUpperCase()}.`);
-            if (!watchData.sources || watchData.sources.length === 0) {
-                 if (watchData.download) {
-                     console.warn(`No streaming sources found, attempting download link: ${watchData.download}`);
-                     currentEpisodeData.intro = { start: 0, end: 0 }; currentEpisodeData.outro = { start: 0, end: 0 };
-                     updateVidstackSource(watchData.download, type, []); // Load download link, no subs
-                     updateStreamTypeButtons();
-                     return; // Exit after attempting download link
-                 }
-                 throw new Error(`No sources found for ${type.toUpperCase()} on server ${currentEpisodeData.selectedServer}.`);
-            }
-
-            currentEpisodeData.intro = watchData.intro || { start: 0, end: 0 };
-            currentEpisodeData.outro = watchData.outro || { start: 0, end: 0 };
-
-            let sourceUrl = null, isHls = false;
-            const sourcesToUse = watchData.sources; // Use sources for the fetched type
-
-            // Prioritize HLS
-            const hlsSource = sourcesToUse.find(s => s.isM3U8 || s.url?.includes('.m3u8'));
-            if (hlsSource) { sourceUrl = hlsSource.url; isHls = true; }
-            else { // Fallback logic
-                 const autoSource = sourcesToUse.find(s => s.quality?.toLowerCase() === 'auto' || s.quality?.toLowerCase() === 'default');
-                 sourceUrl = autoSource ? autoSource.url : sourcesToUse[0]?.url;
-                 isHls = sourceUrl?.includes('.m3u8') || false;
-            }
-
-            if (!sourceUrl) throw new Error(`Could not find a suitable video URL for ${type.toUpperCase()}.`);
-            console.log(`Selected Source: ${sourceUrl} (HLS: ${isHls})`);
-
-            // Update buttons AFTER attempting fetch
-            updateStreamTypeButtons();
-
-            // --- Update Vidstack Player ---
-            updateVidstackSource(sourceUrl, type, watchData.subtitles);
-
-        } catch (error) {
-             console.error(`Error loading video source for ${type.toUpperCase()}:`, error);
-             if (errorMessage) { errorMessage.textContent = `Failed to load video: ${error.message}`; errorMessage.classList.remove('hidden'); }
-             updateStreamTypeButtons(true); // Pass error flag to disable buttons
-        }
-    }
-
-    /** Updates the source and tracks of the Vidstack player */
-    function updateVidstackSource(sourceUrl, type, apiSubtitles = []) {
         if (!vidstackPlayer || !playerOutlet) {
-            console.error("Vidstack player or outlet not available for source update.");
+            console.error("Vidstack player element (<media-player id='vidstack-player'>) or <media-outlet> not found even after definition!");
+            if (loadingMessage) loadingMessage.classList.add('hidden');
+            if (errorMessage) { errorMessage.textContent = "Error: Player element failed to load correctly."; errorMessage.classList.remove('hidden'); }
             return;
         }
-        console.log(`Updating Vidstack source: ${sourceUrl}`);
-        console.log("Updating with subtitles:", apiSubtitles);
+        console.log("Vidstack player element found:", vidstackPlayer);
 
-        // 1. Clear existing tracks from the outlet
-        playerOutlet.innerHTML = ''; // Remove previous tracks
+        // --- Start Main Logic Now ---
+        if(loadingMessage) loadingMessage.classList.remove('hidden'); // Hide loading now
+        if(errorMessage) errorMessage.classList.add('hidden');
+        if(mainContent) mainContent.classList.add('hidden'); // Keep hidden until data fetch
 
-        // 2. Add new track elements
-        const langCodeMap = { 'english': 'en', 'spanish': 'es', 'portuguese': 'pt', 'french': 'fr', 'german': 'de', 'italian': 'it', 'russian': 'ru' /* Add more */ };
-        let defaultTrackAdded = false;
-        apiSubtitles.forEach((sub) => {
-            if (sub.lang?.toLowerCase() === 'thumbnails' || !sub.url) return; // Skip thumbnails or tracks without URL
+        /** Loads video source, subtitles, skip times for Vidstack */
+        async function loadVideoSource(type = 'sub') {
+            console.log(`Load Request: type=${type}, server=${currentEpisodeData.selectedServer}`);
+            currentEpisodeData.selectedType = type; // Update state immediately
+            // Show loading state (e.g., disable buttons, show spinner)
+            if (vidstackPlayer) vidstackPlayer.pause();
+            if (skipIntroButton) skipIntroButton.classList.remove('visible');
+            if (skipOutroButton) skipOutroButton.classList.remove('visible');
+            if (errorMessage) errorMessage.classList.add('hidden'); // Hide previous errors
 
-            const track = document.createElement('track');
-            const langLower = sub.lang?.toLowerCase() || 'unknown';
-            const simpleLang = langLower.split('-')[0].trim(); // Handle "Spanish - Spanish(Latin_America)"
-            let srclang = langCodeMap[simpleLang] || simpleLang.substring(0, 2); // Use mapped code or first 2 chars
-            const isDefault = simpleLang === 'english' && !defaultTrackAdded; // Make first English default
+            // Construct the correct Episode ID to fetch ($sub or $dub)
+            const episodeIdToFetch = `${currentEpisodeData.baseEpisodeId}$${type}`;
+            console.log(`Fetching watch data for constructed ID: ${episodeIdToFetch}`);
 
-            track.src = sub.url;
-            track.label = sub.lang || 'Subtitle'; // Use label from API
-            track.kind = 'subtitles';
-            track.srclang = srclang;
-            if (isDefault) {
-                track.default = true;
-                defaultTrackAdded = true; // Ensure only one default
+            try {
+                const watchData = await fetchEpisodeWatchData(episodeIdToFetch, currentEpisodeData.selectedServer);
+                currentEpisodeData.currentSourceData = watchData; // Store full response for the fetched type
+
+                if (!watchData) throw new Error(`Failed to fetch watch data for ${type.toUpperCase()}.`);
+                if (!watchData.sources || watchData.sources.length === 0) {
+                     if (watchData.download) {
+                         console.warn(`No streaming sources found, attempting download link: ${watchData.download}`);
+                         currentEpisodeData.intro = { start: 0, end: 0 }; currentEpisodeData.outro = { start: 0, end: 0 };
+                         updateVidstackSource(watchData.download, type, []); // Load download link, no subs
+                         updateStreamTypeButtons();
+                         return; // Exit after attempting download link
+                     }
+                     throw new Error(`No sources found for ${type.toUpperCase()} on server ${currentEpisodeData.selectedServer}.`);
+                }
+
+                currentEpisodeData.intro = watchData.intro || { start: 0, end: 0 };
+                currentEpisodeData.outro = watchData.outro || { start: 0, end: 0 };
+
+                let sourceUrl = null, isHls = false;
+                const sourcesToUse = watchData.sources; // Use sources for the fetched type
+
+                // Prioritize HLS
+                const hlsSource = sourcesToUse.find(s => s.isM3U8 || s.url?.includes('.m3u8'));
+                if (hlsSource) { sourceUrl = hlsSource.url; isHls = true; }
+                else { // Fallback logic
+                     const autoSource = sourcesToUse.find(s => s.quality?.toLowerCase() === 'auto' || s.quality?.toLowerCase() === 'default');
+                     sourceUrl = autoSource ? autoSource.url : sourcesToUse[0]?.url;
+                     isHls = sourceUrl?.includes('.m3u8') || false;
+                }
+
+                if (!sourceUrl) throw new Error(`Could not find a suitable video URL for ${type.toUpperCase()}.`);
+                console.log(`Selected Source: ${sourceUrl} (HLS: ${isHls})`);
+
+                // Update buttons AFTER attempting fetch
+                updateStreamTypeButtons();
+
+                // --- Update Vidstack Player ---
+                updateVidstackSource(sourceUrl, type, watchData.subtitles);
+
+            } catch (error) {
+                 console.error(`Error loading video source for ${type.toUpperCase()}:`, error);
+                 if (errorMessage) { errorMessage.textContent = `Failed to load video: ${error.message}`; errorMessage.classList.remove('hidden'); }
+                 updateStreamTypeButtons(true); // Pass error flag to disable buttons
             }
-            playerOutlet.appendChild(track);
-        });
-        console.log("Added <track> elements to outlet:", playerOutlet.innerHTML);
-
-        // 3. Update player title and src
-        // Note: Setting src will trigger Vidstack to load the new source and process tracks
-        vidstackPlayer.title = `${currentEpisodeData.animeTitle} - Ep ${currentEpisodeData.currentEpisodeNumber} (${type.toUpperCase()})`;
-        vidstackPlayer.src = sourceUrl;
-
-        console.log("Vidstack player source and tracks updated.");
-
-        // 4. Setup skip buttons - Use Vidstack's 'can-play' event to ensure player is ready
-        vidstackPlayer.addEventListener('can-play', setupSkipButtons, { once: true });
-    }
-
-
-    /** Updates SUB/DUB button states - simplified */
-    function updateStreamTypeButtons(isError = false) {
-        // Simplification: Assume both might exist unless error.
-        const subAvailable = !isError;
-        const dubAvailable = !isError;
-        console.log(`Updating buttons: SUB=${subAvailable}, DUB=${dubAvailable}, Selected=${currentEpisodeData.selectedType}`);
-        // Update button classes based on availability and selection...
-        if(subButton) { subButton.disabled = !subAvailable; subButton.classList.toggle('bg-purple-600', currentEpisodeData.selectedType === 'sub' && subAvailable); subButton.classList.toggle('text-white', currentEpisodeData.selectedType === 'sub' && subAvailable); subButton.classList.toggle('bg-gray-700', currentEpisodeData.selectedType !== 'sub' || !subAvailable); subButton.classList.toggle('text-gray-200', currentEpisodeData.selectedType !== 'sub' || !subAvailable); subButton.classList.toggle('opacity-50', !subAvailable); subButton.classList.toggle('cursor-not-allowed', !subAvailable); }
-        if(dubButton) { dubButton.disabled = !dubAvailable; dubButton.classList.toggle('bg-purple-600', currentEpisodeData.selectedType === 'dub' && dubAvailable); dubButton.classList.toggle('text-white', currentEpisodeData.selectedType === 'dub' && dubAvailable); dubButton.classList.toggle('bg-gray-700', currentEpisodeData.selectedType !== 'dub' || !dubAvailable); dubButton.classList.toggle('text-gray-200', currentEpisodeData.selectedType !== 'dub' || !dubAvailable); dubButton.classList.toggle('opacity-50', !dubAvailable); dubButton.classList.toggle('cursor-not-allowed', !dubAvailable); }
-    }
-
-    /** Sets up skip intro/outro buttons for Vidstack */
-    function setupSkipButtons() {
-        console.log("Setting up skip buttons for Vidstack...");
-        // Ensure player is the Vidstack element and buttons exist
-        if (!vidstackPlayer || typeof vidstackPlayer.currentTime === 'undefined' || !skipIntroButton || !skipOutroButton) {
-            console.warn("Skip buttons or Vidstack player/API not ready yet.");
-            return;
         }
 
-        const intro = currentEpisodeData.intro;
-        const outro = currentEpisodeData.outro;
-        let introVisible = false, outroVisible = false;
+        /** Updates the source and tracks of the Vidstack player */
+        function updateVidstackSource(sourceUrl, type, apiSubtitles = []) {
+            if (!vidstackPlayer || !playerOutlet) { console.error("Vidstack player or outlet not ready."); return; }
+            console.log(`Updating Vidstack source: ${sourceUrl}`);
+            console.log("Updating with subtitles:", apiSubtitles);
 
-        // Clear previous listeners/timeouts to prevent duplicates
-        vidstackPlayer.removeEventListener('time-update', handleTimeUpdate);
-        clearTimeout(skipIntroTimeout); clearTimeout(skipOutroTimeout);
-        skipIntroButton.removeEventListener('click', handleSkipIntro);
-        skipOutroButton.removeEventListener('click', handleSkipOutro);
-        skipIntroButton.classList.remove('visible'); skipOutroButton.classList.remove('visible'); // Reset visibility
+            // 1. Clear existing tracks from the outlet
+            playerOutlet.innerHTML = ''; // Remove previous tracks
 
-        function handleTimeUpdate() {
-            // Access Vidstack properties directly
-            const currentTime = vidstackPlayer.currentTime;
-            const duration = vidstackPlayer.duration;
-            const isPlaying = !vidstackPlayer.paused; // Check if playing
+            // 2. Add new track elements
+            const langCodeMap = { 'english': 'en', 'spanish': 'es', 'portuguese': 'pt', 'french': 'fr', 'german': 'de', 'italian': 'it', 'russian': 'ru' };
+            let defaultTrackAdded = false;
+            apiSubtitles.forEach((sub) => {
+                if (sub.lang?.toLowerCase() === 'thumbnails' || !sub.url) return; // Skip thumbnails or tracks without URL
+                const track = document.createElement('track');
+                const langLower = sub.lang?.toLowerCase() || 'unknown';
+                const simpleLang = langLower.split('-')[0].trim(); // Handle "Spanish - Spanish(Latin_America)"
+                let srclang = langCodeMap[simpleLang] || simpleLang.substring(0, 2); // Use mapped code or first 2 chars
+                const isDefault = simpleLang === 'english' && !defaultTrackAdded; // Make first English default
+                track.src = sub.url; track.label = sub.lang || 'Subtitle'; track.kind = 'subtitles'; track.srclang = srclang;
+                if (isDefault) { track.default = true; defaultTrackAdded = true; }
+                playerOutlet.appendChild(track);
+            });
+            console.log("Added <track> elements:", playerOutlet.innerHTML);
 
-            if (!isPlaying || !duration || duration === Infinity) return; // Only update if playing & duration known
+            // 3. Update player title and src
+            vidstackPlayer.title = `${currentEpisodeData.animeTitle} - Ep ${currentEpisodeData.currentEpisodeNumber} (${type.toUpperCase()})`;
+            // *** CRITICAL: Setting src triggers Vidstack to load ***
+            vidstackPlayer.src = sourceUrl;
+            console.log("Vidstack player src attribute set.");
 
-            // Show/Hide Intro Button
-            if (intro && intro.end > 0 && currentTime >= intro.start && currentTime < intro.end) {
-                if (!introVisible) { skipIntroButton.classList.add('visible'); introVisible = true; }
-            } else if (introVisible) { skipIntroButton.classList.remove('visible'); introVisible = false; }
-
-            // Show/Hide Outro Button
-            if (outro && outro.start > 0 && currentTime >= outro.start && currentTime < (outro.end || duration)) {
-                 if (!outroVisible) { skipOutroButton.classList.add('visible'); outroVisible = true; }
-            } else if (outroVisible) { skipOutroButton.classList.remove('visible'); outroVisible = false; }
-        }
-        function handleSkipIntro() { if (vidstackPlayer && intro?.end > 0) { vidstackPlayer.currentTime = intro.end; skipIntroButton.classList.remove('visible'); introVisible = false; } }
-        function handleSkipOutro() { if (vidstackPlayer && outro?.end > 0) { vidstackPlayer.currentTime = outro.end; skipOutroButton.classList.remove('visible'); outroVisible = false; } else if (vidstackPlayer && vidstackPlayer.duration) { vidstackPlayer.currentTime = vidstackPlayer.duration; } } // Skip to end if no outro.end
-
-        // Attach listeners only if times are valid
-        if ((intro && intro.end > 0) || (outro && outro.start > 0)) {
-             console.log("Attaching time-update listener for skip buttons.");
-             vidstackPlayer.addEventListener('time-update', handleTimeUpdate);
-        } else { console.log("No valid intro/outro times, skip buttons disabled."); }
-        if (intro && intro.end > 0) skipIntroButton.addEventListener('click', handleSkipIntro);
-        if (outro && outro.start > 0) skipOutroButton.addEventListener('click', handleSkipOutro);
-        console.log("Skip buttons setup complete.");
-    }
-
-    // --- Fetch Initial Data ---
-    try {
-        const animeInfo = await fetchAnimeInfoFromStreamingAPI(currentEpisodeData.streamingId);
-        if (!animeInfo) throw new Error("Could not retrieve anime details.");
-        if (!animeInfo.episodes) animeInfo.episodes = [];
-
-        currentEpisodeData.episodes = animeInfo.episodes;
-        currentEpisodeData.animeTitle = animeInfo.title?.english || animeInfo.title?.romaji || 'Anime';
-        // Find episode number using the BASE episode ID for matching
-        const currentEpInfo = animeInfo.episodes.find(ep => ep.id === currentEpisodeData.baseEpisodeId);
-        currentEpisodeData.currentEpisodeNumber = currentEpInfo?.number || (animeInfo.episodes.length === 1 ? 'Movie/Special' : '?');
-
-        document.title = `Watching ${currentEpisodeData.animeTitle} - Ep ${currentEpisodeData.currentEpisodeNumber}`;
-        if(episodeTitleArea) episodeTitleArea.textContent = `${currentEpisodeData.animeTitle} - Episode ${currentEpisodeData.currentEpisodeNumber}`;
-        if (sidebarAnimeTitle) sidebarAnimeTitle.textContent = currentEpisodeData.animeTitle;
-
-        // Populate Episode List Sidebar
-        if (episodeListUL && episodeListContainer) {
-             if (currentEpisodeData.episodes.length > 0) {
-                 // Highlight based on the BASE episode ID
-                 episodeListUL.innerHTML = currentEpisodeData.episodes.map(ep => createSidebarEpisodeItemHTML(ep, currentEpisodeData.streamingId, currentEpisodeData.aniListId, ep.id === currentEpisodeData.baseEpisodeId)).join('');
-                 const activeItem = episodeListUL.querySelector('.active');
-                 if (activeItem) activeItem.scrollIntoView({ behavior: 'auto', block: 'center' });
-                 episodeListUL.classList.remove('hidden');
-                 if(episodeListError) episodeListError.classList.add('hidden');
-             } else { // Handle no episodes listed
-                  if(episodeListError) { episodeListError.textContent = 'No further episodes listed.'; episodeListError.classList.remove('hidden'); }
-                  episodeListUL.classList.add('hidden');
-             }
-             if(episodeListLoading) episodeListLoading.classList.add('hidden');
-        } else { // Handle missing list elements
-             if(episodeListLoading) episodeListLoading.classList.add('hidden');
-             if(episodeListError) { episodeListError.textContent = 'Could not display episode list.'; episodeListError.classList.remove('hidden'); }
+            // 4. Setup skip buttons after source is set (use 'can-play' event)
+            // Remove previous listener before adding a new one
+            vidstackPlayer.removeEventListener('can-play', setupSkipButtons);
+            vidstackPlayer.addEventListener('can-play', setupSkipButtons, { once: true });
         }
 
-        // Fetch initial video source based on initial type derived from URL
-        await loadVideoSource(currentEpisodeData.selectedType);
 
-        if(loadingMessage) loadingMessage.classList.add('hidden');
-        if(mainContent) mainContent.classList.remove('hidden'); // Show main content now
+        /** Updates SUB/DUB button states - simplified */
+        function updateStreamTypeButtons(isError = false) {
+            // Simplification: Assume both might exist unless error.
+            const subAvailable = !isError;
+            const dubAvailable = !isError;
+            console.log(`Updating buttons: SUB=${subAvailable}, DUB=${dubAvailable}, Selected=${currentEpisodeData.selectedType}`);
+            if(subButton) { subButton.disabled = !subAvailable; subButton.classList.toggle('bg-purple-600', currentEpisodeData.selectedType === 'sub' && subAvailable); subButton.classList.toggle('text-white', currentEpisodeData.selectedType === 'sub' && subAvailable); subButton.classList.toggle('bg-gray-700', currentEpisodeData.selectedType !== 'sub' || !subAvailable); subButton.classList.toggle('text-gray-200', currentEpisodeData.selectedType !== 'sub' || !subAvailable); subButton.classList.toggle('opacity-50', !subAvailable); subButton.classList.toggle('cursor-not-allowed', !subAvailable); }
+            if(dubButton) { dubButton.disabled = !dubAvailable; dubButton.classList.toggle('bg-purple-600', currentEpisodeData.selectedType === 'dub' && dubAvailable); dubButton.classList.toggle('text-white', currentEpisodeData.selectedType === 'dub' && dubAvailable); dubButton.classList.toggle('bg-gray-700', currentEpisodeData.selectedType !== 'dub' || !dubAvailable); dubButton.classList.toggle('text-gray-200', currentEpisodeData.selectedType !== 'dub' || !dubAvailable); dubButton.classList.toggle('opacity-50', !dubAvailable); dubButton.classList.toggle('cursor-not-allowed', !dubAvailable); }
+        }
 
-    } catch (initError) {
-        console.error("Initialization Error:", initError);
+        /** Sets up skip intro/outro buttons for Vidstack */
+        function setupSkipButtons() {
+            console.log("Setting up skip buttons...");
+            // Ensure player is the Vidstack element and buttons exist
+            if (!vidstackPlayer || typeof vidstackPlayer.currentTime === 'undefined' || !skipIntroButton || !skipOutroButton) {
+                console.warn("Skip buttons or Vidstack player/API not ready yet.");
+                return;
+            }
+
+            const intro = currentEpisodeData.intro;
+            const outro = currentEpisodeData.outro;
+            let introVisible = false, outroVisible = false;
+
+            // Clear previous listeners/timeouts to prevent duplicates
+            vidstackPlayer.removeEventListener('time-update', handleTimeUpdate);
+            clearTimeout(skipIntroTimeout); clearTimeout(skipOutroTimeout);
+            skipIntroButton.removeEventListener('click', handleSkipIntro);
+            skipOutroButton.removeEventListener('click', handleSkipOutro);
+            skipIntroButton.classList.remove('visible'); skipOutroButton.classList.remove('visible'); // Reset visibility
+
+            function handleTimeUpdate() {
+                // Access Vidstack properties directly
+                const currentTime = vidstackPlayer.currentTime;
+                const duration = vidstackPlayer.duration;
+                const isPlaying = !vidstackPlayer.paused; // Check if playing
+
+                if (!isPlaying || !duration || duration === Infinity) return; // Only update if playing & duration known
+
+                // Show/Hide Intro Button
+                if (intro && intro.end > 0 && currentTime >= intro.start && currentTime < intro.end) {
+                    if (!introVisible) { skipIntroButton.classList.add('visible'); introVisible = true; }
+                } else if (introVisible) { skipIntroButton.classList.remove('visible'); introVisible = false; }
+
+                // Show/Hide Outro Button
+                if (outro && outro.start > 0 && currentTime >= outro.start && currentTime < (outro.end || duration)) {
+                     if (!outroVisible) { skipOutroButton.classList.add('visible'); outroVisible = true; }
+                } else if (outroVisible) { skipOutroButton.classList.remove('visible'); outroVisible = false; }
+            }
+            function handleSkipIntro() { if (vidstackPlayer && intro?.end > 0) { vidstackPlayer.currentTime = intro.end; skipIntroButton.classList.remove('visible'); introVisible = false; } }
+            function handleSkipOutro() { if (vidstackPlayer && outro?.end > 0) { vidstackPlayer.currentTime = outro.end; skipOutroButton.classList.remove('visible'); outroVisible = false; } else if (vidstackPlayer && vidstackPlayer.duration) { vidstackPlayer.currentTime = vidstackPlayer.duration; } } // Skip to end if no outro.end
+
+            // Attach listeners only if times are valid
+            if ((intro && intro.end > 0) || (outro && outro.start > 0)) {
+                 console.log("Attaching time-update listener for skip buttons.");
+                 vidstackPlayer.addEventListener('time-update', handleTimeUpdate);
+            } else { console.log("No valid intro/outro times, skip buttons disabled."); }
+            if (intro && intro.end > 0) skipIntroButton.addEventListener('click', handleSkipIntro);
+            if (outro && outro.start > 0) skipOutroButton.addEventListener('click', handleSkipOutro);
+            console.log("Skip buttons setup complete.");
+        }
+
+        // --- Fetch Initial Data (Runs after player element is defined) ---
+        try {
+            const animeInfo = await fetchAnimeInfoFromStreamingAPI(currentEpisodeData.streamingId);
+            if (!animeInfo) throw new Error("Could not retrieve anime details.");
+            if (!animeInfo.episodes) animeInfo.episodes = [];
+
+            currentEpisodeData.episodes = animeInfo.episodes;
+            currentEpisodeData.animeTitle = animeInfo.title?.english || animeInfo.title?.romaji || 'Anime';
+            // Find episode number using the BASE episode ID for matching
+            const currentEpInfo = animeInfo.episodes.find(ep => ep.id === currentEpisodeData.baseEpisodeId);
+            currentEpisodeData.currentEpisodeNumber = currentEpInfo?.number || (animeInfo.episodes.length === 1 ? 'Movie/Special' : '?');
+
+            document.title = `Watching ${currentEpisodeData.animeTitle} - Ep ${currentEpisodeData.currentEpisodeNumber}`;
+            if(episodeTitleArea) episodeTitleArea.textContent = `${currentEpisodeData.animeTitle} - Episode ${currentEpisodeData.currentEpisodeNumber}`;
+            if (sidebarAnimeTitle) sidebarAnimeTitle.textContent = currentEpisodeData.animeTitle;
+
+            // Populate Episode List Sidebar
+            if (episodeListUL && episodeListContainer) {
+                 if (currentEpisodeData.episodes.length > 0) {
+                     // Highlight based on the BASE episode ID
+                     episodeListUL.innerHTML = currentEpisodeData.episodes.map(ep => createSidebarEpisodeItemHTML(ep, currentEpisodeData.streamingId, currentEpisodeData.aniListId, ep.id === currentEpisodeData.baseEpisodeId)).join('');
+                     const activeItem = episodeListUL.querySelector('.active');
+                     if (activeItem) activeItem.scrollIntoView({ behavior: 'auto', block: 'center' });
+                     episodeListUL.classList.remove('hidden');
+                     if(episodeListError) episodeListError.classList.add('hidden');
+                 } else { // Handle no episodes listed
+                      if(episodeListError) { episodeListError.textContent = 'No further episodes listed.'; episodeListError.classList.remove('hidden'); }
+                      episodeListUL.classList.add('hidden');
+                 }
+                 if(episodeListLoading) episodeListLoading.classList.add('hidden');
+            } else { // Handle missing list elements
+                 if(episodeListLoading) episodeListLoading.classList.add('hidden');
+                 if(episodeListError) { episodeListError.textContent = 'Could not display episode list.'; episodeListError.classList.remove('hidden'); }
+            }
+
+            // Fetch initial video source based on initial type derived from URL
+            await loadVideoSource(currentEpisodeData.selectedType);
+
+            if(mainContent) mainContent.classList.remove('hidden'); // Show main content now
+
+        } catch (initError) {
+            console.error("Initialization Error:", initError);
+            if (loadingMessage) loadingMessage.classList.add('hidden');
+            if (errorMessage) { errorMessage.textContent = `Error loading episode page: ${initError.message}`; errorMessage.classList.remove('hidden'); }
+            if(mainContent) mainContent.classList.add('hidden'); // Keep content hidden on error
+        }
+
+        // --- Event Listeners for Controls (Attach after player defined) ---
+        if (subButton) subButton.addEventListener('click', () => { if (!subButton.disabled && currentEpisodeData.selectedType !== 'sub') loadVideoSource('sub'); });
+        if (dubButton) dubButton.addEventListener('click', () => { if (!dubButton.disabled && currentEpisodeData.selectedType !== 'dub') loadVideoSource('dub'); });
+        if (serverSelect) serverSelect.addEventListener('change', (e) => { currentEpisodeData.selectedServer = e.target.value; loadVideoSource(currentEpisodeData.selectedType); });
+
+    }).catch(error => {
+        // This catch handles errors if the custom element definition itself fails
+        console.error("Failed to define media-player element:", error);
         if (loadingMessage) loadingMessage.classList.add('hidden');
-        if (errorMessage) { errorMessage.textContent = `Error loading episode page: ${initError.message}`; errorMessage.classList.remove('hidden'); }
-        if(mainContent) mainContent.classList.add('hidden'); // Keep content hidden on error
-    }
-
-    // --- Event Listeners for Controls ---
-    if (subButton) subButton.addEventListener('click', () => { if (!subButton.disabled && currentEpisodeData.selectedType !== 'sub') loadVideoSource('sub'); });
-    if (dubButton) dubButton.addEventListener('click', () => { if (!dubButton.disabled && currentEpisodeData.selectedType !== 'dub') loadVideoSource('dub'); });
-    if (serverSelect) serverSelect.addEventListener('change', (e) => { currentEpisodeData.selectedServer = e.target.value; loadVideoSource(currentEpisodeData.selectedType); });
+        if (errorMessage) { errorMessage.textContent = "Error: Failed to load core player component."; errorMessage.classList.remove('hidden'); }
+    });
 }
 // --- End of initEpisodePage ---
 
