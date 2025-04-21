@@ -4,8 +4,8 @@ const STREAMING_API_BASE_URL = 'https://api-pearl-seven-88.vercel.app'; // User-
 
 let searchTimeoutId = null; // For debouncing search input
 let featuredSwiper = null; // Swiper instance for index page slider
-let plyrPlayer = null; // Plyr instance for episode page video player
-let hlsInstance = null; // HLS.js instance for handling HLS streams
+let vidstackPlayer = null; // NEW: Reference to the Vidstack player element
+
 let currentEpisodeData = { // Structure to hold episode page state
     streamingId: null,    // ID of the anime on the streaming service
     baseEpisodeId: null, // Store the ID without $sub/$dub suffix
@@ -19,7 +19,7 @@ let currentEpisodeData = { // Structure to hold episode page state
     currentEpisodeNumber: '?', // Number of the current episode
     intro: null,          // { start, end } seconds for intro skip
     outro: null,          // { start, end } seconds for outro skip
-    subtitles: []         // Formatted subtitle tracks for Plyr
+    // Subtitles are handled by adding <track> elements directly
 };
 let skipIntroTimeout = null; // Timeout reference for intro skip button visibility
 let skipOutroTimeout = null; // Timeout reference for outro skip button visibility
@@ -416,7 +416,7 @@ function createSearchSuggestionHTML(media) {
 function createDetailEpisodeLinkHTML(episode, streamingId, aniListId) {
     if (!episode || !episode.id || !streamingId || !aniListId) return '';
     const episodeNumber = episode.number || '?';
-    // Link should point to the base ID, letting episode page handle sub/dub default
+    // Link uses the base episode ID from the /info endpoint
     const episodeUrl = `episode.html?streamingId=${encodeURIComponent(streamingId)}&episodeId=${encodeURIComponent(episode.id)}&aniListId=${aniListId}`;
     return `
         <li>
@@ -432,7 +432,7 @@ function createSidebarEpisodeItemHTML(episode, streamingId, aniListId, isActive 
     if (!episode || !episode.id || !streamingId || !aniListId) return '';
     const episodeNumber = episode.number || '?';
     const episodeTitle = episode.title ? `: ${episode.title}` : '';
-    // Link should point to the base ID, letting episode page handle sub/dub default
+    // Link uses the base episode ID from the /info endpoint
     const episodeUrl = `episode.html?streamingId=${encodeURIComponent(streamingId)}&episodeId=${encodeURIComponent(episode.id)}&aniListId=${aniListId}`;
     const activeClass = isActive ? 'active' : '';
     return `
@@ -446,35 +446,6 @@ function createSidebarEpisodeItemHTML(episode, streamingId, aniListId, isActive 
         </li>
     `;
 }
-
-/** Formats subtitles from the API response into the structure Plyr expects. */
-function formatSubtitlesForPlyr(apiSubtitles) {
-    if (!apiSubtitles || apiSubtitles.length === 0) return [];
-    console.log("Formatting subtitles received from API:", apiSubtitles);
-    const langCodeMap = { 'english': 'en', 'spanish': 'es', 'portuguese': 'pt', 'french': 'fr', 'german': 'de', 'italian': 'it', 'russian': 'ru' /* Add more */ };
-    const formatted = apiSubtitles.map((sub, index) => {
-        // Skip "thumbnails" track if present
-        if (sub.lang?.toLowerCase() === 'thumbnails') {
-            return null;
-        }
-        const langLower = sub.lang?.toLowerCase() || 'unknown';
-        // Handle complex lang strings like "Portuguese - Portuguese(Brazil)" -> "Portuguese"
-        const simpleLang = langLower.split('-')[0].trim();
-        let srclang = langCodeMap[simpleLang] || simpleLang.substring(0, 2); // Use mapped code or first 2 chars
-        const isDefault = simpleLang.includes('english'); // Default English if available
-
-        return {
-            kind: 'captions',
-            label: sub.lang || `Subtitle ${index + 1}`, // Display label from API
-            srclang: srclang, // Standard language code for matching
-            src: sub.url,
-            default: isDefault
-        };
-    }).filter(track => track && track.src); // Filter out nulls and tracks without a URL
-    console.log("Formatted Plyr tracks:", formatted);
-    return formatted;
-}
-
 
 // --- Swiper Initialization ---
 function initializeFeaturedSwiper(containerSelector = '#featured-swiper') {
@@ -803,19 +774,25 @@ async function initAnimePage() {
                     const potentialMatches = searchResults.filter(result => {
                         const resultType = result.type;
                         const resultYear = result.releaseDate ? parseInt(result.releaseDate) : null;
+                        // Allow fuzzy matching for format (e.g., "TV Series" contains "TV")
                         const formatMatch = !aniListFormatMapped || !resultType || resultType.includes(aniListFormatMapped) || aniListFormatMapped.includes(resultType);
                         const yearMatch = !aniListYear || !resultYear || resultYear === aniListYear;
+                        // console.log(`Comparing: AL=[${aniListFormatMapped}, ${aniListYear}] vs SR=[${resultType}, ${resultYear}] -> FormatMatch=${formatMatch}, YearMatch=${yearMatch}`);
                         return formatMatch && yearMatch;
                     });
                     console.log(`Found ${potentialMatches.length} potential matches after filtering.`);
 
                     if (potentialMatches.length === 1) { bestMatch = potentialMatches[0]; }
                     else if (potentialMatches.length > 1) {
+                         // Prioritize exact title match if multiple format/year matches found
                          const exactTitleMatch = potentialMatches.find(p => p.title.toLowerCase() === (aniListMedia.title.english?.toLowerCase() || '') || p.title.toLowerCase() === (aniListMedia.title.romaji?.toLowerCase() || ''));
                          bestMatch = exactTitleMatch || potentialMatches[0];
-                         console.warn(exactTitleMatch ? "Found exact title match." : "Multiple matches, falling back to first potential.");
-                    } else { throw new Error(`Could not find a reliable match (Format/Year mismatch? AL: ${aniListFormatMapped}/${aniListYear})`); }
-                    console.log("Selected match:", bestMatch);
+                         console.warn(exactTitleMatch ? "Found exact title match among potentials." : "Multiple matches found after filtering, falling back to the first potential match.");
+                    } else {
+                        // If filtering removed all results, throw error.
+                        throw new Error(`Could not find a reliable match on the streaming service. (Format/Year mismatch? AL: ${aniListFormatMapped}/${aniListYear})`);
+                    }
+                    console.log("Selected match from streaming service:", bestMatch);
 
                     const streamingId = bestMatch?.id;
                     if (streamingId) {
@@ -827,8 +804,18 @@ async function initAnimePage() {
                             if(detailEpisodesLoading) detailEpisodesLoading.classList.add('hidden');
                             if(detailEpisodesError) detailEpisodesError.classList.add('hidden');
                             if(detailEpisodesListContainer) detailEpisodesListContainer.classList.remove('hidden');
-                        } else { throw new Error('No episodes found for this entry on streaming service.'); }
-                    } else { throw new Error('Failed to identify a valid streaming ID.'); }
+                        } else {
+                            // Handle cases like movies or anime with no episodes listed yet
+                            if (streamingInfo && (!streamingInfo.episodes || streamingInfo.episodes.length === 0)) {
+                                 console.log("Streaming info found, but no episodes listed (maybe a movie or not released yet?).");
+                                 throw new Error('No episodes found for this entry on the streaming service.');
+                             } else {
+                                throw new Error('Could not fetch episode details from streaming service.');
+                             }
+                        }
+                    } else {
+                        throw new Error('Failed to identify a valid streaming ID for the anime.');
+                    }
                 } catch (episodeError) { // Catch errors specific to episode fetching/matching
                     console.error("Error fetching/displaying episodes:", episodeError);
                     if(detailEpisodesLoading) detailEpisodesLoading.classList.add('hidden');
@@ -850,9 +837,9 @@ async function initAnimePage() {
     }
 }
 
-/** Initializes the Episode Player Page - ENHANCED + DEBUGGING V2 */
+/** Initializes the Episode Player Page - Using Vidstack */
 async function initEpisodePage() {
-    console.log("Initializing Episode Page");
+    console.log("Initializing Episode Page with Vidstack");
     setFooterYear();
     setupSearch();
     setupMobileMenu();
@@ -861,9 +848,12 @@ async function initEpisodePage() {
     const errorMessage = document.getElementById('episode-error-message');
     const mainContent = document.getElementById('episode-main-content');
     const playerWrapper = document.getElementById('player-wrapper');
-    const videoElement = document.getElementById('video-player');
-    const playerOverlay = document.getElementById('player-overlay');
-    const playerOverlayMessage = document.getElementById('player-overlay-message');
+    // Get Vidstack player element by ID
+    vidstackPlayer = document.getElementById('vidstack-player');
+    const playerOutlet = vidstackPlayer?.querySelector('media-outlet'); // Find the outlet for tracks
+
+    // const playerOverlay = document.getElementById('player-overlay'); // Overlay might not be needed with Vidstack's built-in states
+    // const playerOverlayMessage = document.getElementById('player-overlay-message');
     const episodeTitleArea = document.getElementById('episode-title-area');
     const backButton = document.getElementById('back-to-detail-button');
     const subButton = document.getElementById('sub-button');
@@ -877,19 +867,28 @@ async function initEpisodePage() {
     const skipIntroButton = document.getElementById('skip-intro-button');
     const skipOutroButton = document.getElementById('skip-outro-button');
 
+    // Check if Vidstack player element exists
+    if (!vidstackPlayer || !playerOutlet) {
+        console.error("Vidstack player element (<media-player id='vidstack-player'>) or <media-outlet> not found!");
+        if (loadingMessage) loadingMessage.classList.add('hidden');
+        if (errorMessage) { errorMessage.textContent = "Error: Player element failed to load. Ensure Vidstack components are loaded correctly."; errorMessage.classList.remove('hidden'); }
+        return;
+    }
+
     const urlParams = getUrlParams();
-    const initialEpisodeId = urlParams.episodeId; // Get the full ID from URL
+    const initialEpisodeId = urlParams.episodeId; // Get the full ID from URL (e.g., ...$sub)
     const aniListId = urlParams.aniListId;
-    const streamingId = urlParams.streamingId;
+    const streamingId = urlParams.streamingId; // Anime's ID on streaming service
 
     if (!streamingId || !initialEpisodeId || !aniListId) {
         console.error("Missing required IDs (streamingId, episodeId, aniListId) in URL.");
         if (loadingMessage) loadingMessage.classList.add('hidden');
-        if (errorMessage) { errorMessage.textContent = "Error: Missing required information."; errorMessage.classList.remove('hidden'); }
+        if (errorMessage) { errorMessage.textContent = "Error: Missing required information to load this episode."; errorMessage.classList.remove('hidden'); }
         return;
     }
 
     // --- Parse Base Episode ID ---
+    // Removes $sub, $dub, $both suffix if present
     let baseEpisodeId = initialEpisodeId;
     const lastDollarIndex = initialEpisodeId.lastIndexOf('$');
     if (lastDollarIndex > 0) {
@@ -898,7 +897,7 @@ async function initEpisodePage() {
             baseEpisodeId = initialEpisodeId.substring(0, lastDollarIndex);
             console.log(`Parsed Base Episode ID: ${baseEpisodeId} (from ${initialEpisodeId})`);
         } else {
-             console.log(`No suffix found, using full ID as base: ${initialEpisodeId}`);
+             console.log(`No known suffix ($sub/$dub/$both) found, using full ID as base: ${initialEpisodeId}`);
              baseEpisodeId = initialEpisodeId; // Use full ID if no known suffix
         }
     } else {
@@ -916,12 +915,12 @@ async function initEpisodePage() {
         episodes: [],
         currentSourceData: null,
         selectedServer: serverSelect ? serverSelect.value : 'vidcloud',
-        selectedType: initialEpisodeId.includes('$dub') ? 'dub' : 'sub', // Default type based on initial URL (check includes for safety)
+        selectedType: initialEpisodeId.includes('$dub') ? 'dub' : 'sub', // Default type based on initial URL suffix
         animeTitle: 'Loading...',
         currentEpisodeNumber: '?',
         intro: null,
         outro: null,
-        subtitles: []
+        // subtitles handled via tracks
     };
     console.log("Initial State:", currentEpisodeData);
 
@@ -932,16 +931,18 @@ async function initEpisodePage() {
     }
     if(loadingMessage) loadingMessage.classList.remove('hidden');
     if(errorMessage) errorMessage.classList.add('hidden');
-    if(mainContent) mainContent.classList.add('hidden');
+    if(mainContent) mainContent.classList.add('hidden'); // Hide main content until ready
 
-    /** Loads video source, subtitles, skip times based on type (sub/dub) */
+    /** Loads video source, subtitles, skip times for Vidstack */
     async function loadVideoSource(type = 'sub') {
         console.log(`Load Request: type=${type}, server=${currentEpisodeData.selectedServer}`);
         currentEpisodeData.selectedType = type; // Update state immediately
-        if(playerOverlay && playerOverlayMessage) { playerOverlayMessage.textContent = `Loading ${type.toUpperCase()}...`; playerOverlay.classList.remove('hidden'); }
-        if (plyrPlayer) plyrPlayer.stop();
+        // Show loading state (e.g., disable buttons, show spinner)
+        // Vidstack has built-in loading indicators, so custom overlay might be less needed
+        if (vidstackPlayer) vidstackPlayer.pause(); // Pause current playback
         if (skipIntroButton) skipIntroButton.classList.remove('visible');
         if (skipOutroButton) skipOutroButton.classList.remove('visible');
+        if (errorMessage) errorMessage.classList.add('hidden'); // Hide previous errors
 
         // Construct the correct Episode ID to fetch ($sub or $dub)
         const episodeIdToFetch = `${currentEpisodeData.baseEpisodeId}$${type}`;
@@ -949,29 +950,25 @@ async function initEpisodePage() {
 
         try {
             const watchData = await fetchEpisodeWatchData(episodeIdToFetch, currentEpisodeData.selectedServer);
-            currentEpisodeData.currentSourceData = watchData; // Store full response for the fetched type
+            currentEpisodeData.currentSourceData = watchData; // Store full response
 
             if (!watchData) throw new Error(`Failed to fetch watch data for ${type.toUpperCase()}.`);
             if (!watchData.sources || watchData.sources.length === 0) {
                  if (watchData.download) {
                      console.warn(`No streaming sources found, attempting download link: ${watchData.download}`);
-                     currentEpisodeData.intro = { start: 0, end: 0 }; currentEpisodeData.outro = { start: 0, end: 0 }; currentEpisodeData.subtitles = [];
-                     setupSkipButtons();
-                     updatePlyrSource(watchData.download, false, type, []);
+                     currentEpisodeData.intro = { start: 0, end: 0 }; currentEpisodeData.outro = { start: 0, end: 0 };
+                     updateVidstackSource(watchData.download, type, []); // Load download link, no subs
                      updateStreamTypeButtons();
-                     if(playerOverlay) playerOverlay.classList.add('hidden');
-                     return;
+                     return; // Exit after attempting download link
                  }
                  throw new Error(`No sources found for ${type.toUpperCase()} on server ${currentEpisodeData.selectedServer}.`);
             }
 
             currentEpisodeData.intro = watchData.intro || { start: 0, end: 0 };
             currentEpisodeData.outro = watchData.outro || { start: 0, end: 0 };
-            currentEpisodeData.subtitles = formatSubtitlesForPlyr(watchData.subtitles);
 
             let sourceUrl = null, isHls = false;
-            // Since we fetched specifically SUB or DUB, use the sources returned directly
-            const sourcesToUse = watchData.sources;
+            const sourcesToUse = watchData.sources; // Use sources for the fetched type
 
             // Prioritize HLS
             const hlsSource = sourcesToUse.find(s => s.isM3U8 || s.url?.includes('.m3u8'));
@@ -988,177 +985,120 @@ async function initEpisodePage() {
             // Update buttons AFTER attempting fetch
             updateStreamTypeButtons();
 
-            if (!plyrPlayer) initializePlyrPlayer(videoElement, sourceUrl, isHls, type, currentEpisodeData.subtitles);
-            else updatePlyrSource(sourceUrl, isHls, type, currentEpisodeData.subtitles);
-
-            if(playerOverlay) playerOverlay.classList.add('hidden');
+            // --- Update Vidstack Player ---
+            updateVidstackSource(sourceUrl, type, watchData.subtitles);
 
         } catch (error) {
              console.error(`Error loading video source for ${type.toUpperCase()}:`, error);
-             if(playerOverlay && playerOverlayMessage) { playerOverlayMessage.textContent = `Error: ${error.message}`; playerOverlay.classList.remove('hidden'); }
              if (errorMessage) { errorMessage.textContent = `Failed to load video: ${error.message}`; errorMessage.classList.remove('hidden'); }
-             updateStreamTypeButtons(true); // Pass error flag to potentially disable buttons
+             updateStreamTypeButtons(true); // Pass error flag to disable buttons
         }
     }
 
-    /** Initializes Plyr player */
-    function initializePlyrPlayer(videoEl, sourceUrl, isHls, type, tracks = []) {
-        console.log("Attempting to initialize Plyr Player...");
-        if (plyrPlayer) { try { plyrPlayer.destroy(); console.log("Destroyed previous Plyr instance."); } catch(e){ console.warn("Error destroying previous Plyr:", e); } plyrPlayer = null; }
-        if (hlsInstance) { try { hlsInstance.destroy(); console.log("Destroyed previous HLS instance."); } catch(e){ console.warn("Error destroying previous HLS:", e); } hlsInstance = null; }
+    /** Updates the source and tracks of the Vidstack player */
+    function updateVidstackSource(sourceUrl, type, apiSubtitles = []) {
+        if (!vidstackPlayer || !playerOutlet) {
+            console.error("Vidstack player or outlet not available for source update.");
+            return;
+        }
+        console.log(`Updating Vidstack source: ${sourceUrl}`);
+        console.log("Updating with subtitles:", apiSubtitles);
 
-        // *** Ensure Settings are Correctly Configured ***
-        const plyrOptions = {
-            debug: true, // Enable Plyr debugging output in console
-            title: `${currentEpisodeData.animeTitle} - Ep ${currentEpisodeData.currentEpisodeNumber} (${type.toUpperCase()})`,
-            controls: [
-                'play-large', 'play', 'progress', 'current-time', 'mute', 'volume',
-                'captions', // Button to toggle captions menu
-                'settings', // Cog icon button
-                'pip', 'airplay', 'fullscreen'
-            ],
-            settings: ['captions', 'quality', 'speed', 'loop'], // Options *inside* the settings menu
-            captions: { active: true, language: 'auto', update: true }, // Default subs on ('auto' tries to match browser lang)
-            tooltips: { controls: true, seek: true },
-            keyboard: { focused: true, global: true },
-            tracks: tracks // Pass formatted subtitles
-        };
-        // Log the options right before creating the player
-        console.log("Plyr Options being used:", JSON.parse(JSON.stringify(plyrOptions)));
+        // 1. Clear existing tracks from the outlet
+        playerOutlet.innerHTML = ''; // Remove previous tracks
 
-        try {
-            if (isHls && typeof Hls !== 'undefined' && Hls.isSupported()) {
-                console.log("Initializing Plyr with HLS.js support...");
-                hlsInstance = new Hls({ capLevelToPlayerSize: true /* Other HLS options */ });
-                hlsInstance.on(Hls.Events.MANIFEST_PARSED, (event, data) => { console.log(`HLS Manifest Parsed: ${data.levels.length} quality levels found.`); });
-                hlsInstance.loadSource(sourceUrl);
-                hlsInstance.attachMedia(videoEl);
-                window.hls = hlsInstance; // For debugging
-                hlsInstance.on(Hls.Events.ERROR, (event, data) => {
-                    console.error('HLS Error:', data);
-                    if (data.fatal && playerOverlay && playerOverlayMessage) {
-                        playerOverlayMessage.textContent = `Playback Error (HLS: ${data.details})`;
-                        playerOverlay.classList.remove('hidden');
-                    }
-                });
-                plyrPlayer = new Plyr(videoEl, plyrOptions);
-                console.log("Plyr initialized with HLS.");
-            } else {
-                console.log("Initializing Plyr with native source...");
-                videoEl.src = sourceUrl; // Set src directly for non-HLS
-                plyrPlayer = new Plyr(videoEl, plyrOptions);
-                console.log("Plyr initialized with native source.");
+        // 2. Add new track elements
+        const langCodeMap = { 'english': 'en', 'spanish': 'es', 'portuguese': 'pt', 'french': 'fr', 'german': 'de', 'italian': 'it', 'russian': 'ru' /* Add more */ };
+        let defaultTrackAdded = false;
+        apiSubtitles.forEach((sub) => {
+            if (sub.lang?.toLowerCase() === 'thumbnails' || !sub.url) return; // Skip thumbnails or tracks without URL
+
+            const track = document.createElement('track');
+            const langLower = sub.lang?.toLowerCase() || 'unknown';
+            const simpleLang = langLower.split('-')[0].trim(); // Handle "Spanish - Spanish(Latin_America)"
+            let srclang = langCodeMap[simpleLang] || simpleLang.substring(0, 2); // Use mapped code or first 2 chars
+            const isDefault = simpleLang === 'english' && !defaultTrackAdded; // Make first English default
+
+            track.src = sub.url;
+            track.label = sub.lang || 'Subtitle'; // Use label from API
+            track.kind = 'subtitles';
+            track.srclang = srclang;
+            if (isDefault) {
+                track.default = true;
+                defaultTrackAdded = true; // Ensure only one default
             }
-            window.player = plyrPlayer; // For debugging
+            playerOutlet.appendChild(track);
+        });
+        console.log("Added <track> elements to outlet:", playerOutlet.innerHTML);
 
-            // Attach event listeners AFTER player is created
-            plyrPlayer.on('ready', () => { console.log("Plyr player ready event fired."); setupSkipButtons(); });
-            plyrPlayer.on('error', (event) => { console.error("Plyr Player Error Event:", event); if(playerOverlay && playerOverlayMessage){ playerOverlayMessage.textContent = `Video Playback Error.`; playerOverlay.classList.remove('hidden'); } });
-            plyrPlayer.on('controlsshown', () => console.log("Plyr controls shown"));
-            plyrPlayer.on('controlshidden', () => console.log("Plyr controls hidden"));
-            plyrPlayer.on('enterfullscreen', () => console.log("Plyr entered fullscreen"));
-            plyrPlayer.on('exitfullscreen', () => console.log("Plyr exited fullscreen"));
-            plyrPlayer.on('languagechange', () => console.log("Plyr language changed"));
-            plyrPlayer.on('qualitychange', (event) => console.log("Plyr qualitychange event:", event.detail)); // Log quality changes
+        // 3. Update player title and src
+        // Note: Setting src will trigger Vidstack to load the new source and process tracks
+        vidstackPlayer.title = `${currentEpisodeData.animeTitle} - Ep ${currentEpisodeData.currentEpisodeNumber} (${type.toUpperCase()})`;
+        vidstackPlayer.src = sourceUrl;
 
-            console.log("Plyr event listeners attached.");
-            // Check if settings menu exists after init (helps debug CSS issues)
-            setTimeout(() => {
-                 const settingsMenu = playerWrapper?.querySelector('.plyr__menu');
-                 if (settingsMenu) {
-                     console.log("Plyr settings menu element found in DOM.");
-                 } else {
-                     console.warn("Plyr settings menu element NOT found in DOM after init.");
-                 }
-            }, 500);
+        console.log("Vidstack player source and tracks updated.");
 
-
-        } catch (initError) {
-             console.error("!!! CRITICAL ERROR INITIALIZING PLYR !!!", initError);
-             if(playerOverlay && playerOverlayMessage) { playerOverlayMessage.textContent = `Player Init Failed: ${initError.message}`; playerOverlay.classList.remove('hidden'); }
-             if (errorMessage) { errorMessage.textContent = `Failed to initialize player: ${initError.message}`; errorMessage.classList.remove('hidden'); }
-        }
+        // 4. Setup skip buttons - Use Vidstack's 'can-play' event to ensure player is ready
+        vidstackPlayer.addEventListener('can-play', setupSkipButtons, { once: true });
     }
 
-    /** Updates source and tracks of existing Plyr player */
-    function updatePlyrSource(sourceUrl, isHls, type, tracks = []) {
-        if (!plyrPlayer) { console.warn("Player not ready, initializing instead of updating."); initializePlyrPlayer(videoElement, sourceUrl, isHls, type, tracks); return; }
-        console.log(`Updating Plyr source: ${sourceUrl} (HLS: ${isHls})`);
-        const newSource = { type: 'video', title: `${currentEpisodeData.animeTitle} - Ep ${currentEpisodeData.currentEpisodeNumber} (${type.toUpperCase()})`, sources: [{ src: sourceUrl, type: isHls ? 'application/x-mpegURL' : 'video/mp4' }], tracks: tracks };
-        try {
-            if (isHls && typeof Hls !== 'undefined' && Hls.isSupported()) {
-                if (!hlsInstance) { // Safety check if HLS instance was lost
-                    console.warn("HLS instance missing during update, re-initializing HLS.");
-                    hlsInstance = new Hls({ capLevelToPlayerSize: true });
-                    hlsInstance.attachMedia(videoElement); window.hls = hlsInstance;
-                    hlsInstance.on(Hls.Events.ERROR, (event, data) => { console.error('HLS Error:', data); /* ... */ });
-                }
-                console.log("Updating HLS source...");
-                hlsInstance.loadSource(sourceUrl);
-                plyrPlayer.source = newSource; // Update Plyr's source info
-                console.log("Plyr source updated for HLS.");
-            } else {
-                console.log("Updating native source...");
-                plyrPlayer.source = newSource;
-                console.log("Plyr source updated for native.");
-            }
-             // Optional: Resume playback state? Consider saving currentTime before changing source.
-             // plyrPlayer.play();
-        } catch (updateError) {
-             console.error("Error updating Plyr source:", updateError);
-             if(playerOverlay && playerOverlayMessage) { playerOverlayMessage.textContent = `Error switching source: ${updateError.message}`; playerOverlay.classList.remove('hidden'); }
-        }
-    }
 
     /** Updates SUB/DUB button states - simplified */
     function updateStreamTypeButtons(isError = false) {
-        // Simplification: Assume both might be available unless an error occurred loading the current type.
-        // A truly accurate check would require trying to fetch both $sub and $dub IDs on page load or storing availability.
-        const subAvailable = !isError; // Enable if no error loading current type
-        const dubAvailable = !isError; // Enable if no error loading current type
+        // Simplification: Assume both might exist unless error.
+        const subAvailable = !isError;
+        const dubAvailable = !isError;
         console.log(`Updating buttons: SUB=${subAvailable}, DUB=${dubAvailable}, Selected=${currentEpisodeData.selectedType}`);
-
+        // Update button classes based on availability and selection...
         if(subButton) { subButton.disabled = !subAvailable; subButton.classList.toggle('bg-purple-600', currentEpisodeData.selectedType === 'sub' && subAvailable); subButton.classList.toggle('text-white', currentEpisodeData.selectedType === 'sub' && subAvailable); subButton.classList.toggle('bg-gray-700', currentEpisodeData.selectedType !== 'sub' || !subAvailable); subButton.classList.toggle('text-gray-200', currentEpisodeData.selectedType !== 'sub' || !subAvailable); subButton.classList.toggle('opacity-50', !subAvailable); subButton.classList.toggle('cursor-not-allowed', !subAvailable); }
         if(dubButton) { dubButton.disabled = !dubAvailable; dubButton.classList.toggle('bg-purple-600', currentEpisodeData.selectedType === 'dub' && dubAvailable); dubButton.classList.toggle('text-white', currentEpisodeData.selectedType === 'dub' && dubAvailable); dubButton.classList.toggle('bg-gray-700', currentEpisodeData.selectedType !== 'dub' || !dubAvailable); dubButton.classList.toggle('text-gray-200', currentEpisodeData.selectedType !== 'dub' || !dubAvailable); dubButton.classList.toggle('opacity-50', !dubAvailable); dubButton.classList.toggle('cursor-not-allowed', !dubAvailable); }
     }
 
-    /** Sets up skip intro/outro buttons */
+    /** Sets up skip intro/outro buttons for Vidstack */
     function setupSkipButtons() {
-        console.log("Setting up skip buttons...");
-        if (!plyrPlayer || !skipIntroButton || !skipOutroButton) { console.warn("Skip buttons or player not ready."); return; }
+        console.log("Setting up skip buttons for Vidstack...");
+        // Ensure player is the Vidstack element and buttons exist
+        if (!vidstackPlayer || typeof vidstackPlayer.currentTime === 'undefined' || !skipIntroButton || !skipOutroButton) {
+            console.warn("Skip buttons or Vidstack player/API not ready yet.");
+            return;
+        }
+
         const intro = currentEpisodeData.intro;
         const outro = currentEpisodeData.outro;
         let introVisible = false, outroVisible = false;
 
         // Clear previous listeners/timeouts to prevent duplicates
-        plyrPlayer.off('timeupdate', handleTimeUpdate);
+        vidstackPlayer.removeEventListener('time-update', handleTimeUpdate);
         clearTimeout(skipIntroTimeout); clearTimeout(skipOutroTimeout);
         skipIntroButton.removeEventListener('click', handleSkipIntro);
         skipOutroButton.removeEventListener('click', handleSkipOutro);
         skipIntroButton.classList.remove('visible'); skipOutroButton.classList.remove('visible'); // Reset visibility
 
         function handleTimeUpdate() {
-             if (!plyrPlayer || !plyrPlayer.playing) return; // Only update if playing
-             const currentTime = plyrPlayer.currentTime;
-             const duration = plyrPlayer.duration;
+            // Access Vidstack properties directly
+            const currentTime = vidstackPlayer.currentTime;
+            const duration = vidstackPlayer.duration;
+            const isPlaying = !vidstackPlayer.paused; // Check if playing
 
-             // Show/Hide Intro Button
-             if (intro && intro.end > 0 && currentTime >= intro.start && currentTime < intro.end) {
-                 if (!introVisible) { skipIntroButton.classList.add('visible'); introVisible = true; }
-             } else if (introVisible) { skipIntroButton.classList.remove('visible'); introVisible = false; }
+            if (!isPlaying || !duration || duration === Infinity) return; // Only update if playing & duration known
 
-             // Show/Hide Outro Button
-             if (outro && outro.start > 0 && duration > 0 && currentTime >= outro.start && currentTime < (outro.end || duration)) {
-                  if (!outroVisible) { skipOutroButton.classList.add('visible'); outroVisible = true; }
-             } else if (outroVisible) { skipOutroButton.classList.remove('visible'); outroVisible = false; }
+            // Show/Hide Intro Button
+            if (intro && intro.end > 0 && currentTime >= intro.start && currentTime < intro.end) {
+                if (!introVisible) { skipIntroButton.classList.add('visible'); introVisible = true; }
+            } else if (introVisible) { skipIntroButton.classList.remove('visible'); introVisible = false; }
+
+            // Show/Hide Outro Button
+            if (outro && outro.start > 0 && currentTime >= outro.start && currentTime < (outro.end || duration)) {
+                 if (!outroVisible) { skipOutroButton.classList.add('visible'); outroVisible = true; }
+            } else if (outroVisible) { skipOutroButton.classList.remove('visible'); outroVisible = false; }
         }
-        function handleSkipIntro() { if (plyrPlayer && intro?.end > 0) { plyrPlayer.currentTime = intro.end; skipIntroButton.classList.remove('visible'); introVisible = false; } }
-        function handleSkipOutro() { if (plyrPlayer && outro?.end > 0) { plyrPlayer.currentTime = outro.end; skipOutroButton.classList.remove('visible'); outroVisible = false; } else if (plyrPlayer && plyrPlayer.duration) { plyrPlayer.currentTime = plyrPlayer.duration; } } // Skip to end if no outro.end
+        function handleSkipIntro() { if (vidstackPlayer && intro?.end > 0) { vidstackPlayer.currentTime = intro.end; skipIntroButton.classList.remove('visible'); introVisible = false; } }
+        function handleSkipOutro() { if (vidstackPlayer && outro?.end > 0) { vidstackPlayer.currentTime = outro.end; skipOutroButton.classList.remove('visible'); outroVisible = false; } else if (vidstackPlayer && vidstackPlayer.duration) { vidstackPlayer.currentTime = vidstackPlayer.duration; } } // Skip to end if no outro.end
 
         // Attach listeners only if times are valid
         if ((intro && intro.end > 0) || (outro && outro.start > 0)) {
-             console.log("Attaching timeupdate listener for skip buttons.");
-             plyrPlayer.on('timeupdate', handleTimeUpdate);
+             console.log("Attaching time-update listener for skip buttons.");
+             vidstackPlayer.addEventListener('time-update', handleTimeUpdate);
         } else { console.log("No valid intro/outro times, skip buttons disabled."); }
         if (intro && intro.end > 0) skipIntroButton.addEventListener('click', handleSkipIntro);
         if (outro && outro.start > 0) skipOutroButton.addEventListener('click', handleSkipOutro);
@@ -1173,7 +1113,7 @@ async function initEpisodePage() {
 
         currentEpisodeData.episodes = animeInfo.episodes;
         currentEpisodeData.animeTitle = animeInfo.title?.english || animeInfo.title?.romaji || 'Anime';
-        // Find episode number using the BASE episode ID for matching against the list from /info
+        // Find episode number using the BASE episode ID for matching
         const currentEpInfo = animeInfo.episodes.find(ep => ep.id === currentEpisodeData.baseEpisodeId);
         currentEpisodeData.currentEpisodeNumber = currentEpInfo?.number || (animeInfo.episodes.length === 1 ? 'Movie/Special' : '?');
 
@@ -1191,7 +1131,7 @@ async function initEpisodePage() {
                  episodeListUL.classList.remove('hidden');
                  if(episodeListError) episodeListError.classList.add('hidden');
              } else { // Handle no episodes listed
-                  if(episodeListError) { episodeListError.textContent = 'No further episodes listed for this entry.'; episodeListError.classList.remove('hidden'); }
+                  if(episodeListError) { episodeListError.textContent = 'No further episodes listed.'; episodeListError.classList.remove('hidden'); }
                   episodeListUL.classList.add('hidden');
              }
              if(episodeListLoading) episodeListLoading.classList.add('hidden');
@@ -1204,13 +1144,13 @@ async function initEpisodePage() {
         await loadVideoSource(currentEpisodeData.selectedType);
 
         if(loadingMessage) loadingMessage.classList.add('hidden');
-        if(mainContent) mainContent.classList.remove('hidden');
+        if(mainContent) mainContent.classList.remove('hidden'); // Show main content now
 
     } catch (initError) {
         console.error("Initialization Error:", initError);
         if (loadingMessage) loadingMessage.classList.add('hidden');
         if (errorMessage) { errorMessage.textContent = `Error loading episode page: ${initError.message}`; errorMessage.classList.remove('hidden'); }
-        if(mainContent) mainContent.classList.add('hidden');
+        if(mainContent) mainContent.classList.add('hidden'); // Keep content hidden on error
     }
 
     // --- Event Listeners for Controls ---
