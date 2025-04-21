@@ -9,90 +9,67 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vidstack@^1.0.0/player/styles/default/theme.min.css" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vidstack@^1.0.0/player/styles/default/layouts/video.min.css" />
-
-    <script type="module" src="https://cdn.jsdelivr.net/npm/vidstack@^1.0.0/player/vidstack.min.js"></script>
-    <script type="module" src="https://cdn.jsdelivr.net/npm/vidstack@^1.0.0/player/layouts/default/ui.min.js"></script>
-
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/dplayer@latest/dist/DPlayer.min.css" />
 
     <style>
         /* Common Styles */
         html { scroll-behavior: smooth; }
-        body { font-family: 'Inter', sans-serif; background-color: #111827; /* Darker background */ color: #e2e8f0; }
+        body { font-family: 'Inter', sans-serif; background-color: #111827; color: #e2e8f0; }
         body.modal-open { overflow: hidden; }
         ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #1f2937; } /* Darker track */
-        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; } /* Adjusted thumb */
+        ::-webkit-scrollbar-track { background: #1f2937; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
         .line-clamp-1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }
         .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }
         #mobile-sidebar { transition: transform 0.3s ease-in-out; }
         #search-suggestions { position: absolute; top: 100%; left: 0; right: 0; z-index: 40; max-height: 300px; overflow-y: auto; background-color: #1f2937; border: 1px solid #374151; border-top: none; border-radius: 0 0 0.375rem 0.375rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3); }
-        #search-suggestions::-webkit-scrollbar { width: 5px; }
-        #search-suggestions::-webkit-scrollbar-track { background: #374151; }
-        #search-suggestions::-webkit-scrollbar-thumb { background: #6b7280; border-radius: 3px;}
-        #search-suggestions::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+        /* ... other common styles ... */
 
         /* Episode Page Specific Styles */
         #episode-main-content { display: flex; flex-direction: column; lg:flex-row; gap: 1rem; }
-        #player-wrapper { position: relative; flex-grow: 1; background-color: #000; border-radius: 0.5rem; overflow: hidden; } /* Wrapper styles */
-        #player-container { /* Container for the Vidstack component */
+        #player-wrapper { position: relative; flex-grow: 1; background-color: #000; border-radius: 0.5rem; overflow: hidden; } /* Wrapper for player and skip buttons */
+        /* Container for DPlayer */
+        #dplayer-container {
             width: 100%;
-            height: 100%; /* Ensure it fills wrapper */
-            min-height: 300px;
             aspect-ratio: 16 / 9; /* Maintain aspect ratio */
+            background-color: #000; /* Background while loading */
+            border-radius: 0.5rem; /* Match wrapper rounding */
         }
-        media-player { /* Style the Vidstack component itself */
-             width: 100%;
-             height: 100%;
-             border-radius: 0.5rem; /* Match container rounding */
-             /* Vidstack theme variables can be overridden here */
-             --media-brand: #7c3aed; /* Purple accent */
-             --media-focus-ring-color: #a78bfa; /* Lighter purple for focus */
-             --media-tooltip-y-offset: 40px; /* Ensure tooltips appear above controls */
-        }
+        /* DPlayer specific overrides if needed */
+        .dplayer { border-radius: 0.5rem; }
+        .dplayer-controller { /* Adjust controller background/opacity if desired */ }
 
-        #episode-sidebar { width: 100%; lg:width: 320px; /* Fixed width on large screens */ flex-shrink: 0; background-color: #1f2937; border-radius: 0.5rem; padding: 1rem; max-height: calc(100vh - 120px); /* Adjust based on header/footer */ overflow-y: auto; }
-        #episode-list { max-height: calc(100vh - 250px); /* Adjust based on surrounding elements */ overflow-y: auto; }
-        #episode-list::-webkit-scrollbar { width: 5px; }
-        #episode-list::-webkit-scrollbar-track { background: #374151; }
-        #episode-list::-webkit-scrollbar-thumb { background: #6b7280; border-radius: 3px;}
+        #episode-sidebar { width: 100%; lg:width: 320px; flex-shrink: 0; background-color: #1f2937; border-radius: 0.5rem; padding: 1rem; max-height: calc(100vh - 120px); overflow-y: auto; }
+        #episode-list { max-height: calc(100vh - 250px); overflow-y: auto; }
+        /* ... episode list item styles ... */
         .episode-list-item { display: block; padding: 0.5rem 0.75rem; border-radius: 0.375rem; transition: background-color 0.2s ease-in-out; cursor: pointer; border: 1px solid transparent; }
         .episode-list-item:hover { background-color: #374151; }
-        .episode-list-item.active { background-color: #4f46e5; /* Indigo */ color: #fff; font-weight: 600; border-color: #6366f1; }
+        .episode-list-item.active { background-color: #4f46e5; color: #fff; font-weight: 600; border-color: #6366f1; }
         .episode-list-item.active:hover { background-color: #4338ca; }
 
 
         /* Skip Buttons (Positioned relative to #player-wrapper) */
         .skip-button {
             position: absolute;
-            bottom: 80px; /* Adjust vertical position (higher due to larger controls) */
+            bottom: 60px; /* Adjust vertical position for DPlayer controls */
             right: 20px;
-            z-index: 30; /* Ensure above player UI */
-            background-color: rgba(26, 32, 44, 0.8); /* bg-gray-800 with opacity */
-            color: #e2e8f0; /* text-gray-200 */
+            z-index: 100; /* Ensure above DPlayer UI elements */
+            background-color: rgba(26, 32, 44, 0.8);
+            color: #e2e8f0;
             padding: 0.5rem 1rem;
-            border-radius: 0.375rem; /* rounded-md */
-            font-size: 0.875rem; /* text-sm */
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
             font-weight: 500;
             cursor: pointer;
-            transition: opacity 0.3s ease, visibility 0.3s ease, background-color 0.2s ease;
-            border: 1px solid rgba(74, 85, 104, 0.5); /* border-gray-600ish */
-            opacity: 0; /* Hidden state */
-            visibility: hidden; /* Hidden state */
-            pointer-events: none; /* Hidden state */
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+            border: 1px solid rgba(74, 85, 104, 0.5);
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
         }
-        .skip-button.visible {
-            opacity: 1;
-            visibility: visible; /* Make visible */
-            pointer-events: auto;
-        }
-        .skip-button:hover {
-             background-color: rgba(45, 55, 72, 0.9); /* bg-gray-700 with opacity */
-             color: #fff;
-        }
-        /* Position outro button differently if needed, e.g., on the left */
+        .skip-button.visible { opacity: 1; visibility: visible; pointer-events: auto; }
+        .skip-button:hover { background-color: rgba(45, 55, 72, 0.9); color: #fff; }
         /* #skip-outro-button { left: 20px; right: auto; } */
 
         /* Loading/Error States */
@@ -162,22 +139,8 @@
         <div id="episode-main-content" class="hidden"> <div class="flex flex-col gap-4 flex-grow">
 
                 <div id="player-wrapper">
-                    <div id="player-container">
-                        <media-player id="vidstack-player" class="w-full h-full"
-                            title="Loading Anime Title..." <?php /* Title set by JS */ ?>
-                            src="" <?php /* Source set by JS */ ?>
-                            poster="" <?php /* Optional: Poster set by JS */ ?>
-                            thumbnails="" <?php /* Optional: Thumbnails VTT set by JS */ ?>
-                            aspect-ratio="16/9"
-                            crossorigin
-                            playsinline
-                            autoplay <?php /* Add autoplay attribute if desired */ ?>
-                            >
-                            <media-outlet class="w-full h-full">
-                                </media-outlet>
-                             <media-community-skin></media-community-skin>
-                        </media-player>
-                    </div>
+                    <div id="dplayer-container">
+                        </div>
                     <button id="skip-intro-button" class="skip-button">Skip Intro</button>
                     <button id="skip-outro-button" class="skip-button">Skip Outro</button>
                 </div>
@@ -214,8 +177,7 @@
                         <div class="skeleton-block h-8 w-full"></div>
                         <div class="skeleton-block h-8 w-full"></div>
                     </div>
-                    <ul id="episode-list" class="space-y-1 hidden">
-                        </ul>
+                    <ul id="episode-list" class="space-y-1 hidden"></ul>
                      <p id="episode-list-error" class="hidden text-sm text-red-400 italic p-2">Could not load episode list.</p>
                 </div>
             </aside>
@@ -227,29 +189,21 @@
         <p>This is a conceptual clone for demonstration purposes. Streaming links are provided by third-party APIs.</p>
     </footer>
 
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dplayer@latest/dist/DPlayer.min.js"></script>
+
     <script src="script.js"></script>
 
     <script>
-        // Wait for the DOM to be fully loaded before initializing
         document.addEventListener('DOMContentLoaded', () => {
-            // Check if the specific initialization function exists in script.js
             if (typeof initEpisodePage === 'function') {
-                // Call the function to set up the episode page
                 initEpisodePage();
             } else {
-                // Log an error if the function is missing (helps debugging)
                 console.error("Initialization function 'initEpisodePage' not found in script.js");
-                // Display a user-friendly error message on the page
                 const errorDiv = document.getElementById('episode-error-message');
                 const loadingDiv = document.getElementById('episode-loading-message');
-                if(errorDiv) {
-                    errorDiv.textContent = 'Critical Error: Page script failed to load. Cannot initialize player.';
-                    errorDiv.classList.remove('hidden');
-                }
-                 if(loadingDiv) {
-                    // Hide loading message if there's a critical error
-                    loadingDiv.classList.add('hidden');
-                }
+                if(errorDiv) { errorDiv.textContent = 'Critical Error: Page script failed to load.'; errorDiv.classList.remove('hidden'); }
+                 if(loadingDiv) { loadingDiv.classList.add('hidden'); }
             }
         });
     </script>
