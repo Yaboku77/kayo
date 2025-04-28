@@ -424,7 +424,7 @@ async function initIndexPage() {
     const { season, year } = getCurrentSeason();
     const variables = {
         page: 1,
-        perPageTrending: 7, // For slider + grid
+        perPageTrending: 10, // For slider + grid
         perPagePopularGrid: 10,
         perPageTop: 10,
         season: season,
