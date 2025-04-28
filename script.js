@@ -423,7 +423,7 @@ async function initIndexPage() {
     if (errorMessageDiv) errorMessageDiv.classList.add('hidden');
     const { season, year } = getCurrentSeason();
     const variables = {
-        page: 1,
+        page: 3,
         perPageTrending: 10, // For slider + grid
         perPagePopularGrid: 10,
         perPageTop: 10,
